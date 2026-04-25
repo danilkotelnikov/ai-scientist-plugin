@@ -1,0 +1,35 @@
+# Append the contents of this file to ~/.codex/config.toml to enable the
+# ai-scientist plugin in Codex.
+#
+# On Linux/macOS, replace ${env:USERPROFILE} with ${env:HOME}.
+
+[features]
+multi_agent = true
+
+# AI-Scientist core MCP — knowledge store, codebase analyzer, meta-analysis
+[mcp_servers.ai-scientist]
+command = "python"
+args = [
+  "${env:USERPROFILE}/.codex/ai-scientist-plugin/plugins/ai-scientist/mcp/server.py",
+  "--mode",
+  "stdio",
+]
+env = { AI_SCIENTIST_HOME = "${env:USERPROFILE}/.ai-scientist", PYTHONPATH = "${env:USERPROFILE}/.codex/ai-scientist-plugin/plugins/ai-scientist/mcp/lib" }
+
+# OpenAlex — drAbreu/alex-mcp v4.1.0 (literature search via OpenAlex's 240M+ works index)
+[mcp_servers.openalex]
+command = "uvx"
+args = [
+  "--from",
+  "git+https://github.com/drAbreu/alex-mcp.git@4.1.0",
+  "alex-mcp",
+]
+env = { OPENALEX_MAILTO = "${env:OPENALEX_EMAIL}", OPENALEX_RATE_PER_SEC = "10" }
+
+# Semantic Scholar — JackKuo666/semanticscholar-MCP-Server (cloned at install time)
+[mcp_servers.semanticscholar]
+command = "python"
+args = [
+  "${env:USERPROFILE}/.ai-scientist/external/semanticscholar-MCP-Server/semantic_scholar_server.py",
+]
+env = { SEMANTIC_SCHOLAR_API_KEY = "${env:SEMANTIC_SCHOLAR_KEY}" }

@@ -22,6 +22,26 @@
                 }
               }
             },
+            "codex_agents": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z_]+$": {
+                  "type": "object",
+                  "properties": {
+                    "model": { "enum": ["gpt-5.5", "gpt-5.4", "gpt-5.3", "inherit"] },
+                    "reasoning_effort": { "enum": ["low", "medium", "high", "xhigh"] },
+                    "max_output_tokens": { "type": "integer", "minimum": 1024, "maximum": 262144 },
+                    "context_window": {
+                      "oneOf": [
+                        { "type": "integer", "minimum": 8192, "maximum": 2000000 },
+                        { "enum": ["model_max"] }
+                      ]
+                    }
+                  },
+                  "required": ["model", "reasoning_effort"]
+                }
+              }
+            },
             "interactivity": { "enum": ["none", "checkpoints", "full"] },
             "auto_fix_max_rounds": { "type": "integer", "minimum": 0, "maximum": 10 },
             "fixer_max_rounds_per_phase": { "type": "integer", "minimum": 0, "maximum": 10 },

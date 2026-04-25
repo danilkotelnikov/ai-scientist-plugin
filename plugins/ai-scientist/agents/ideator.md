@@ -5,6 +5,11 @@ model: opus
 thinking:
   enabled: true
   budget_tokens: 48000
+codex:
+  model: gpt-5.5
+  reasoning_effort: xhigh
+  max_output_tokens: 128000
+  context_window: 1050000
 tools:
   - WebFetch
   - Read

@@ -5,6 +5,10 @@ model: sonnet
 thinking:
   enabled: true
   budget_tokens: 16000
+codex:
+  model: gpt-5.4
+  reasoning_effort: high
+  max_output_tokens: 24576
 tools:
   - Read
   - AskUserQuestion

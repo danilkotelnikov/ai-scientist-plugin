@@ -67,3 +67,48 @@ def test_agent_tools_list(agent_name):
     tools = fm["tools"]
     assert isinstance(tools, list) and len(tools) > 0, \
         f"{agent_name}.md: tools must be non-empty list"
+
+
+# Codex-compatibility checks: each agent must declare codex.model + reasoning_effort.
+# Heavy roles (5 GPT-5.5 xhigh) must use 1.05M context + 128k output.
+HEAVY_AGENTS = {"ideator", "hypothesizer", "code-generator", "manuscript-writer", "reviewer"}
+LIGHT_AGENTS = EXPECTED_AGENTS - HEAVY_AGENTS
+ALLOWED_CODEX_MODELS = {"gpt-5.5", "gpt-5.4", "gpt-5.3", "inherit"}
+ALLOWED_REASONING_EFFORTS = {"low", "medium", "high", "xhigh"}
+
+
+@pytest.mark.parametrize("agent_name", sorted(EXPECTED_AGENTS))
+def test_agent_has_codex_block(agent_name):
+    fm = parse_frontmatter(AGENTS_DIR / f"{agent_name}.md")
+    assert "codex" in fm, f"{agent_name}.md: missing 'codex:' frontmatter block"
+    codex = fm["codex"]
+    assert codex.get("model") in ALLOWED_CODEX_MODELS, \
+        f"{agent_name}.md: codex.model must be one of {ALLOWED_CODEX_MODELS}, got {codex.get('model')!r}"
+    assert codex.get("reasoning_effort") in ALLOWED_REASONING_EFFORTS, \
+        f"{agent_name}.md: codex.reasoning_effort must be one of {ALLOWED_REASONING_EFFORTS}"
+    assert isinstance(codex.get("max_output_tokens"), int), \
+        f"{agent_name}.md: codex.max_output_tokens must be int"
+
+
+@pytest.mark.parametrize("agent_name", sorted(HEAVY_AGENTS))
+def test_heavy_agent_max_context_and_output(agent_name):
+    fm = parse_frontmatter(AGENTS_DIR / f"{agent_name}.md")
+    codex = fm["codex"]
+    assert codex["model"] == "gpt-5.5", \
+        f"{agent_name}.md: heavy agent must use gpt-5.5"
+    assert codex["reasoning_effort"] == "xhigh", \
+        f"{agent_name}.md: heavy agent must use reasoning_effort=xhigh"
+    assert codex["max_output_tokens"] == 128000, \
+        f"{agent_name}.md: heavy agent must have max_output_tokens=128000, got {codex['max_output_tokens']}"
+    assert codex.get("context_window") == 1050000, \
+        f"{agent_name}.md: heavy agent must have context_window=1050000, got {codex.get('context_window')}"
+
+
+@pytest.mark.parametrize("agent_name", sorted(LIGHT_AGENTS))
+def test_light_agent_uses_gpt54_high(agent_name):
+    fm = parse_frontmatter(AGENTS_DIR / f"{agent_name}.md")
+    codex = fm["codex"]
+    assert codex["model"] == "gpt-5.4", \
+        f"{agent_name}.md: light agent must use gpt-5.4"
+    assert codex["reasoning_effort"] == "high", \
+        f"{agent_name}.md: light agent must use reasoning_effort=high"

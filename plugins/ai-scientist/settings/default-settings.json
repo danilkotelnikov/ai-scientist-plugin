@@ -15,6 +15,20 @@
         "meta_analyst":        { "model": "sonnet", "thinking_budget": 8000 },
         "fixer":               { "model": "sonnet", "thinking_budget": 16000 }
       },
+      "codex_agents": {
+        "ideator":             { "model": "gpt-5.5", "reasoning_effort": "xhigh", "max_output_tokens": 128000, "context_window": 1050000 },
+        "codebase_scanner":    { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 16384 },
+        "literature_searcher": { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 16384 },
+        "hypothesizer":        { "model": "gpt-5.5", "reasoning_effort": "xhigh", "max_output_tokens": 128000, "context_window": 1050000 },
+        "code_generator":      { "model": "gpt-5.5", "reasoning_effort": "xhigh", "max_output_tokens": 128000, "context_window": 1050000 },
+        "experiment_runner":   { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 16384 },
+        "plotter":             { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 16384 },
+        "manuscript_writer":   { "model": "gpt-5.5", "reasoning_effort": "xhigh", "max_output_tokens": 128000, "context_window": 1050000 },
+        "citator":             { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 16384 },
+        "reviewer":            { "model": "gpt-5.5", "reasoning_effort": "xhigh", "max_output_tokens": 128000, "context_window": 1050000 },
+        "meta_analyst":        { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 16384 },
+        "fixer":               { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 24576 }
+      },
       "interactivity": "checkpoints",
       "auto_fix_max_rounds": 3,
       "fixer_max_rounds_per_phase": 3,

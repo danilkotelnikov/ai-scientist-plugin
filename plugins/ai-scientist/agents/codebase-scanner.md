@@ -5,6 +5,10 @@ model: sonnet
 thinking:
   enabled: true
   budget_tokens: 8000
+codex:
+  model: gpt-5.4
+  reasoning_effort: high
+  max_output_tokens: 16384
 tools:
   - Glob
   - Grep
