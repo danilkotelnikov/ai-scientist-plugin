@@ -79,5 +79,5 @@ if (Test-Path $dbPath) {
 Write-Host ""
 Write-Host "Install complete." -ForegroundColor Green
 Write-Host "Next: run scripts\migrate-from-skill.ps1 to archive the old skill, then add the marketplace:"
-Write-Host "  /plugin marketplace add `"C:\Users\danil\OneDrive\Рабочий стол\MCPs`""
-Write-Host "  /plugin install ai-scientist@ai-scientist-local"
+Write-Host "  /plugin marketplace add danilkotelnikov/ai-scientist-plugin"
+Write-Host "  /plugin install ai-scientist@ai-scientist-plugin"

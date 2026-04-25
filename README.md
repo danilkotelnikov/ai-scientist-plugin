@@ -15,11 +15,13 @@ End-to-end agentic research pipeline: literature search → hypothesis → exper
 Inside Claude Code:
 
 ```
-/plugin marketplace add "C:\Users\danil\OneDrive\Рабочий стол\MCPs"
-/plugin install ai-scientist@ai-scientist-local
+/plugin marketplace add danilkotelnikov/ai-scientist-plugin
+/plugin install ai-scientist@ai-scientist-plugin
 ```
 
 After install, the plugin appears in **Customize** with toggles for each agent's model and the per-phase enable flags.
+
+(For local-only install without GitHub, use `/plugin marketplace add ./ai-scientist-plugin` from the parent directory containing the plugin folder.)
 
 ```powershell
 # 3. Verify
