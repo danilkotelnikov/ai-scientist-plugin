@@ -11,6 +11,27 @@
         "AI_SCIENTIST_HOME": "${env:USERPROFILE}/.ai-scientist",
         "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/mcp/lib"
       }
+    },
+    "openalex": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/drAbreu/alex-mcp.git@4.1.0",
+        "alex-mcp"
+      ],
+      "env": {
+        "OPENALEX_MAILTO": "${env:OPENALEX_EMAIL}",
+        "OPENALEX_RATE_PER_SEC": "10"
+      }
+    },
+    "semanticscholar": {
+      "command": "python",
+      "args": [
+        "${env:USERPROFILE}/.ai-scientist/external/semanticscholar-MCP-Server/semantic_scholar_server.py"
+      ],
+      "env": {
+        "SEMANTIC_SCHOLAR_API_KEY": "${env:SEMANTIC_SCHOLAR_KEY}"
+      }
     }
   }
 }

@@ -60,6 +60,48 @@ if (-not (Test-Path $aiHome)) {
 Write-Host "Installing MCP requirements..." -ForegroundColor Cyan
 & python -m pip install --user -r "$PluginRoot\mcp\requirements.txt"
 
+# 7a. Install third-party literature MCP servers
+Write-Host "Installing third-party literature MCP servers..." -ForegroundColor Cyan
+
+# OpenAlex (drAbreu/alex-mcp) — installed on demand by uvx; just probe uvx.
+$uvx = Get-Command uvx -ErrorAction SilentlyContinue
+if (-not $uvx) {
+    Write-Warning "  uvx not found. OpenAlex MCP requires uvx. Install:"
+    Write-Warning "    pip install --user uv  # or  winget install astral-sh.uv"
+} else {
+    Write-Host "  uvx: $($uvx.Source) — alex-mcp will be auto-installed on first MCP start"
+}
+
+# Semantic Scholar (JackKuo666/semanticscholar-MCP-Server) — clone + pip-install deps
+$ssExternal = "$aiHome\external\semanticscholar-MCP-Server"
+if (-not (Test-Path "$aiHome\external")) {
+    New-Item -ItemType Directory -Path "$aiHome\external" | Out-Null
+}
+if (-not (Test-Path $ssExternal)) {
+    Write-Host "  Cloning JackKuo666/semanticscholar-MCP-Server..."
+    & git clone --depth=1 "https://github.com/JackKuo666/semanticscholar-MCP-Server.git" $ssExternal 2>&1 | Out-Null
+    if (-not (Test-Path "$ssExternal\semantic_scholar_server.py")) {
+        Write-Warning "  semanticscholar MCP clone failed; the source will be unavailable until you re-run install.ps1 or clone manually."
+    } else {
+        & python -m pip install --user -r "$ssExternal\requirements.txt" 2>&1 | Select-Object -Last 2
+        Write-Host "  semanticscholar MCP cloned + deps installed"
+    }
+} else {
+    Write-Host "  semanticscholar MCP already cloned at $ssExternal"
+    & python -m pip install --user -q -r "$ssExternal\requirements.txt" 2>&1 | Out-Null
+}
+
+# Reminder about required env vars for the literature MCPs
+if (-not $env:OPENALEX_EMAIL) {
+    Write-Warning "  OPENALEX_EMAIL is not set. Polite-pool throttle (1 req/s instead of 10) will apply."
+    Write-Warning "  Set: setx OPENALEX_EMAIL `"your-email@example.com`""
+}
+if (-not $env:SEMANTIC_SCHOLAR_KEY) {
+    Write-Warning "  SEMANTIC_SCHOLAR_KEY is not set. Semantic Scholar /search will be skipped."
+    Write-Warning "  Get a key: https://www.semanticscholar.org/product/api"
+    Write-Warning "  Set: setx SEMANTIC_SCHOLAR_KEY `"your-key`""
+}
+
 # 8. MCP self-test
 Write-Host "Running MCP self-test..." -ForegroundColor Cyan
 $selftest = & python "$PluginRoot\mcp\server.py" --selftest 2>&1

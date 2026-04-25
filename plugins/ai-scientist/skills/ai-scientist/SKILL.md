@@ -80,6 +80,10 @@ Each subagent receives:
 - `max_per_source`: from `literature.max_papers / 6`, rounded up
 - `time_budget_seconds`: 60 (configurable via `literature.max_wall_clock_seconds / 3`)
 
+**HTTP-fetch tools** (used by openalex / semantic_scholar branches): the literature-searcher agent uses `mcp__fetcher__fetch_url` (and `fetch_urls` for batch) — NOT `WebFetch`. WebFetch is permission-restricted in subagent contexts; the dedicated fetcher MCP works there. Bash + curl is the fallback if the fetcher MCP is unavailable. arxiv / biorxiv / pubmed / annas_archive use their own dedicated MCP search tools (no HTTP).
+
+**Semantic Scholar caveat:** the `/paper/search` endpoint requires an API key as of late 2024. If `${env:SEMANTIC_SCHOLAR_KEY}` is not set, the source is skipped immediately (settings default: `"if_key_set"`). The orchestrator should not retry it.
+
 **Source enablement** (from settings):
 - `false` → skip the dispatch entirely
 - `"if_key_set"` → dispatch only if the relevant env var is set (e.g., SEMANTIC_SCHOLAR_KEY for semantic_scholar)
