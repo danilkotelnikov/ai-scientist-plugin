@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "ai-scientist": {
+      "command": "python",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp/server.py",
+        "--mode",
+        "stdio"
+      ],
+      "env": {
+        "AI_SCIENTIST_HOME": "${env:USERPROFILE}/.ai-scientist",
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/mcp/lib"
+      }
+    }
+  }
+}

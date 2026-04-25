@@ -1,0 +1,10 @@
+# MCP server runtime dependencies for ai-scientist plugin.
+#
+# The lib uses only stdlib for core functionality. The optional chromadb
+# backend enables semantic search in the knowledge store (lazy-imported in
+# chroma_store.py). If unavailable, the store falls back to SQLite FTS5.
+#
+# Per-experiment Python deps live in per-job venvs, not here.
+
+chromadb>=0.4.22
+sentence-transformers>=2.5.0
