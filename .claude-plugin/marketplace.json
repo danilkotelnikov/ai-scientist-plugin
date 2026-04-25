@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "ai-scientist",
-      "source": ".",
+      "source": "./plugins/ai-scientist",
       "description": "Agentic AI-Scientist research pipeline plugin"
     }
   ]
