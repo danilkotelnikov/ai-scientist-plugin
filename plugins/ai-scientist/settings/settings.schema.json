@@ -58,9 +58,16 @@
                 "min_unique_threshold": { "type": "integer", "minimum": 1 },
                 "metadata_validation": { "enum": ["strict", "off"] },
                 "openalex_rate_limit_per_second": { "type": "number", "minimum": 0.1, "maximum": 10 },
+                "max_wall_clock_seconds": { "type": "integer", "minimum": 30, "maximum": 1800 },
+                "per_source_time_budget_seconds": { "type": "integer", "minimum": 10, "maximum": 600 },
                 "sources": {
                   "type": "object",
-                  "additionalProperties": { "type": "boolean" }
+                  "additionalProperties": {
+                    "oneOf": [
+                      { "type": "boolean" },
+                      { "enum": ["if_key_set"] }
+                    ]
+                  }
                 }
               }
             },

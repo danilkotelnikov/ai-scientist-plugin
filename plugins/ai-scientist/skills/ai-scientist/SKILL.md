@@ -60,19 +60,42 @@ If `--codebase <path>` provided, dispatch `Task(subagent_type="ai-scientist-code
 
 ## Phase 1: Literature search
 
-Dispatch `Task(subagent_type="ai-scientist-literature-searcher", ...)`. Inline:
-- Topic + 8 queries from `search-queries.md` template
-- Domain (for source selection)
-- Prior successful queries from trajectories.jsonl
-- Throttle config (rate_limit_per_second from settings)
-- Metadata validation mode
+**CRITICAL: dispatch 6 parallel Tasks, not 1 sequential one.** Subagent tool calls are serial within a single Task() invocation, so a single literature-searcher hitting 6 sources sequentially can hang for 30+ minutes. Orchestrator-level parallelism is the only way to fan out concurrently.
 
-Expect: deduplicated paper list as JSON, with metadata-validation outcomes.
+In a SINGLE message, emit 6 (or fewer, depending on enabled sources from settings) Task() dispatches in parallel:
 
-After return:
-1. Filter against `academic-domains.md` allowlist.
-2. Apply metadata cross-validation if `metadata_validation: strict`.
-3. Write `paper_list.json`, `references.bib`, `validation_log.json`.
+```
+Task(subagent_type="ai-scientist-literature-searcher", prompt=<prompt with source="openalex" + queries + budgets>)
+Task(subagent_type="ai-scientist-literature-searcher", prompt=<prompt with source="arxiv" + queries + budgets>)
+Task(subagent_type="ai-scientist-literature-searcher", prompt=<prompt with source="pubmed" + queries + budgets>)
+Task(subagent_type="ai-scientist-literature-searcher", prompt=<prompt with source="biorxiv" + queries + budgets>)
+Task(subagent_type="ai-scientist-literature-searcher", prompt=<prompt with source="semantic_scholar" + queries + budgets>)
+Task(subagent_type="ai-scientist-literature-searcher", prompt=<prompt with source="annas_archive" + queries + budgets>)
+```
+
+Each subagent receives:
+- `source`: its assigned source name
+- `topic`, `domain`, `queries` (4 queries from `search-queries.md`)
+- `rate_limit`: from `literature.openalex_rate_limit_per_second`
+- `max_per_source`: from `literature.max_papers / 6`, rounded up
+- `time_budget_seconds`: 60 (configurable via `literature.max_wall_clock_seconds / 3`)
+
+**Source enablement** (from settings):
+- `false` → skip the dispatch entirely
+- `"if_key_set"` → dispatch only if the relevant env var is set (e.g., SEMANTIC_SCHOLAR_KEY for semantic_scholar)
+- `true` → always dispatch
+
+Wait for ALL parallel Tasks to return (Claude Code handles this automatically when multiple Tasks are dispatched in one message).
+
+After all returns:
+1. **Merge** all per-source paper lists into one array.
+2. **Dedup** by DOI (case-insensitive), then normalized title (lowercase, strip punct, first 80 chars). Prefer records with more complete metadata.
+3. **Filter** against `academic-domains.md` allowlist.
+4. **Cross-validate metadata** ONLY if `literature.metadata_validation == "strict"`: WebFetch Crossref for each paper with DOI, verify title+author+year. On mismatch, prefer Crossref. **Skip this entirely in default ("off") mode** — it adds 50+ HTTP calls.
+5. **Sort** by year descending, cap at `literature.max_papers`.
+6. **Write** `paper_list.json`, `references.bib`, `validation_log.json`.
+
+If the merged result has fewer than `literature.min_unique_threshold` papers, do ONE round of fallback widening: re-dispatch only OpenAlex and arXiv with broader queries (`<core>`, `<core> + " methods"`, `<core> + " review"`) and a wider year floor (`literature.fallback_year_floor`). After one round, accept whatever you have — never loop.
 
 BibTeX key format: `{LastName}{Year}_{index}`. If first author is empty/unknown: `ref{Year}_{index}`. Escape special LaTeX chars in titles (`&` → `\&`, `{` → `\{`, `}` → `\}`).
 

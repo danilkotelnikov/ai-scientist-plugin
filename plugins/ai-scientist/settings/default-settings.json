@@ -37,20 +37,22 @@
         "citation_density": "medium"
       },
       "literature": {
-        "max_papers": 50,
+        "max_papers": 30,
         "year_floor": 2024,
         "fallback_year_floor": 2020,
-        "min_unique_threshold": 15,
-        "metadata_validation": "strict",
+        "min_unique_threshold": 10,
+        "metadata_validation": "off",
         "openalex_rate_limit_per_second": 5,
+        "max_wall_clock_seconds": 180,
+        "per_source_time_budget_seconds": 60,
         "sources": {
-          "semantic_scholar": true,
-          "openalex": true,
-          "arxiv": true,
-          "biorxiv": true,
-          "pubmed": true,
-          "consensus": true,
-          "annas_archive": true
+          "openalex":         true,
+          "arxiv":            true,
+          "pubmed":           true,
+          "biorxiv":          true,
+          "semantic_scholar": "if_key_set",
+          "annas_archive":    false,
+          "consensus":        false
         }
       },
       "credentials": {
