@@ -1,0 +1,14 @@
+{
+  "name": "ai-scientist-local",
+  "owner": {
+    "name": "scienceboylovesyou",
+    "email": "scienceboylovesyou@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "ai-scientist",
+      "source": ".",
+      "description": "Agentic AI-Scientist research pipeline plugin"
+    }
+  ]
+}
