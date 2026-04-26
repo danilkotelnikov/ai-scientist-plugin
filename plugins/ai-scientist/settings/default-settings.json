@@ -91,16 +91,21 @@
         "knowledge_root": "~/.ai-scientist",
         "default_output_root": "./ai-scientist-output",
         "retain_completed_jobs_days": 90,
-        "mempalace_root": "~/.ai-scientist/palace"
+        "mempalace_path_template": "${output_dir}/.palace"
       },
       "memory": {
         "enabled": true,
-        "per_job_db": true,
+        "per_project_db": true,
+        "scope": "project",
+        "isolation": "strict",
         "session_recall_on_start": true,
         "save_before_compact": true,
         "save_on_phase_complete": true,
+        "save_on_agent_entry": true,
+        "save_on_agent_exit": true,
         "agent_diaries": true,
-        "wake_up_token_budget": 4000
+        "wake_up_token_budget": 4000,
+        "no_cross_project_leak": true
       },
       "experiment": {
         "timeout_seconds": 300,

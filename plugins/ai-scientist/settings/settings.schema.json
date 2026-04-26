@@ -89,7 +89,7 @@
             "manuscript": {
               "type": "object",
               "properties": {
-                "latex_template": { "enum": ["aiscientist-default", "overleaf-minimal", "elsevier-cas-sc", "ieee-conference", "acm-sig"] },
+                "latex_template": { "enum": ["aiscientist-default", "overleaf-minimal", "elsevier-cas-sc", "ieee-conference", "acm-sig", "icml-2025", "icbinb"] },
                 "word_template": { "enum": ["arxiv-shared-1", "minimalist", "two-column-academic"] },
                 "tone": { "enum": ["technical", "narrative", "balanced"] },
                 "citation_density": { "enum": ["low", "medium", "high"] }

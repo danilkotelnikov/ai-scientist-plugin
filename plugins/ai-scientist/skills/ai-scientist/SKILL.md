@@ -21,6 +21,50 @@ You are the AI-Scientist orchestrator. You own deterministic plumbing — file I
 - `academic-domains.md` — trusted publisher allowlist
 - `search-queries.md` — 8-query strategy + per-source budget + fallback rules
 - `routing-intents.md` — 12 named intents + dispatch tables
+- `references/codex-tools.md` — Codex tool-name mapping (Task → spawn_agent)
+- `references/gemini-tools.md` — Gemini CLI tool-name mapping
+
+## Universal MemPalace contract (applies to every agent dispatch)
+
+**Every Task() dispatch MUST include this block in the prompt header:**
+
+```
+<input name="palace_path">${output_dir}/.palace</input>
+
+Before starting, call:
+  mcp__mempalace__wake_up(root="${output_dir}/.palace", token_budget=2000)
+to load any context from earlier work on this project.
+
+After completing your phase output, call:
+  mcp__mempalace__mine(
+    root="${output_dir}/.palace",
+    content="<your phase summary + output>",
+    tags=["ai-scientist", "phase:<phase_name>", "agent:<agent_name>", "job:<job_id>"]
+  )
+so the next agent or session can recall what you did.
+
+The palace is project-scoped (lives inside output_dir). Do NOT write or
+read any other palace path. No cross-project leakage permitted.
+```
+
+This contract guarantees per-project memory isolation: every agent reads from and writes to the same per-job palace at `<output_dir>/.palace/`, and never touches another project's palace.
+
+## v2 Python operators (callable directly via Bash, no Task dispatch needed)
+
+The plugin bundles canonical Sakana AI-Scientist v2 Python modules at `<plugin>/mcp/lib/v2/`. The orchestrator can either dispatch the .md agent (subagent route) or invoke the .py module directly (script route). Pick per phase:
+
+| Phase | .md agent route | .py script route (canonical v2) |
+|---|---|---|
+| 0.5 Ideation | `ai-scientist-ideator` | `python <plugin>/mcp/lib/v2/perform_ideation_temp_free.py --topic ...` |
+| 4 Experiment (single-shot) | `ai-scientist-experiment-runner` | (no v2 single-shot; use BFTS instead) |
+| 4 Experiment (BFTS tree-search) | `ai-scientist-tree-search-runner` (Tier C) | `python <plugin>/mcp/lib/v2/treesearch/perform_experiments_bfts_with_agentmanager.py --config bfts_config.yaml` |
+| 5.5 Plot aggregation | `ai-scientist-plotter` | `python <plugin>/mcp/lib/v2/perform_plotting.py --output_dir ...` |
+| 5 Manuscript (NeurIPS/aiscientist) | `ai-scientist-manuscript-writer` | `python <plugin>/mcp/lib/v2/perform_writeup.py ...` |
+| 5 Manuscript (ICBINB workshop) | same agent + `latex_template: icbinb` | `python <plugin>/mcp/lib/v2/perform_icbinb_writeup.py ...` |
+| 7 Self-review (textual) | `ai-scientist-reviewer` | `python <plugin>/mcp/lib/v2/perform_llm_review.py ...` |
+| 8.5 Visual VLM review | `ai-scientist-vlm-reviewer` (Tier B) | `python <plugin>/mcp/lib/v2/perform_vlm_review.py ...` |
+
+Default: dispatch the .md agent (lighter, host-native). Switch to the .py route via `--use-v2-scripts` flag for full canonical v2 behavior — useful for benchmarking against the published v2 results.
 
 ## Phase −1: Intent classification
 
@@ -43,12 +87,13 @@ Required inputs are listed in `routing-intents.md`. If missing, ask once via `As
 3. Create output dir: `<output-dir>/`.
 4. Write `config.json` (job_id, topic, domain, codebase_path, created_at, preferred_libraries, experiment_type, evaluation_metric, python_version, pip_path, venv_path).
 5. **Recall ai-scientist knowledge** (cross-job): call `mcp__ai-scientist__search_knowledge_index(query=topic, limit=20)`, then `get_knowledge_details(ids=[...])` for top hits. Also `get_meta_analysis()` and `get_what_works()`. Report counts and reusable queries to user.
-6. **Initialize per-job MemPalace** (per-project memory DB):
-   - Path: `~/.ai-scientist/palace/<job_id>/`
-   - Init via MCP: `mcp__mempalace__init(root="<palace_path>")` (or shell: `mempalace init <palace_path>`)
-   - Set the `MEMPALACE_ROOT` env var for this session to the per-job path so all subagents and hooks scope writes/reads to it.
-   - **Wake-up recall**: call `mcp__mempalace__wake_up(token_budget=4000)` to load any prior context for this topic from earlier sessions on this job.
-   - The plugin's hooks (`hooks/hooks.json`) will auto-save before context compaction (PreCompact) and on Stop. No manual save calls needed during normal flow.
+6. **Initialize per-project MemPalace** (project-scoped memory DB — strict isolation, no cross-project leakage):
+   - **Path: `<output_dir>/.palace/`** — the palace lives INSIDE the job's output dir. Deleting the project removes the palace; no global `~/.ai-scientist/palace/` is used. This is the foundation of the no-cross-project-leak guarantee.
+   - Init via MCP: `mcp__mempalace__init(root="<output_dir>/.palace")` (or shell: `mempalace init <output_dir>/.palace`).
+   - Set `AI_SCIENTIST_OUTPUT_DIR=<output_dir>` env var so the SessionStart/PreCompact/Stop hooks (`hooks/mempalace-recall.sh`, `hooks/mempalace-save.sh`) know which project's palace to read/write.
+   - Set `MEMPALACE_ROOT=<output_dir>/.palace` env var for any sub-shell that needs it.
+   - **Wake-up recall**: call `mcp__mempalace__wake_up(token_budget=4000)` to load any prior context from earlier sessions on this same project.
+   - **Uniform per-agent contract**: every agent must (a) call `mcp__mempalace__wake_up` on entry, (b) call `mcp__mempalace__mine` on exit with its phase output. The plugin's hooks handle PreCompact and Stop automatically; per-agent recall/save during normal flow is documented in each agent's prompt.
 7. **Create venv**: `cd <output-dir> && python -m venv .venv && .venv\Scripts\activate && pip install --upgrade pip`. (Unix: `.venv/bin/activate`.)
 
 ## Phase 0.5: Ideation

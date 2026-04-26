@@ -13,15 +13,16 @@
 set -euo pipefail
 
 TRIGGER="${1:-stop}"
-PALACE_ROOT="${MEMPALACE_ROOT:-$HOME/.ai-scientist/palace}"
 JOB_DIR="${AI_SCIENTIST_OUTPUT_DIR:-}"
 
 if [[ -z "$JOB_DIR" || ! -f "$JOB_DIR/config.json" ]]; then
   exit 0
 fi
 
+# Per-project palace lives INSIDE the job's output directory at .palace/.
+# Self-contained, no cross-project leakage.
 JOB_ID=$(python -c "import json,sys; print(json.load(open('$JOB_DIR/config.json'))['job_id'])" 2>/dev/null || echo "unknown")
-JOB_PALACE="$PALACE_ROOT/$JOB_ID"
+JOB_PALACE="$JOB_DIR/.palace"
 
 mkdir -p "$JOB_PALACE"
 

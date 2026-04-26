@@ -11,7 +11,6 @@
 
 set -euo pipefail
 
-PALACE_ROOT="${MEMPALACE_ROOT:-$HOME/.ai-scientist/palace}"
 JOB_DIR="${AI_SCIENTIST_OUTPUT_DIR:-}"
 
 if [[ -z "$JOB_DIR" || ! -f "$JOB_DIR/config.json" ]]; then
@@ -19,8 +18,10 @@ if [[ -z "$JOB_DIR" || ! -f "$JOB_DIR/config.json" ]]; then
   exit 0
 fi
 
-JOB_ID=$(python -c "import json,sys; print(json.load(open('$JOB_DIR/config.json'))['job_id'])" 2>/dev/null || echo "unknown")
-JOB_PALACE="$PALACE_ROOT/$JOB_ID"
+# Per-project palace lives INSIDE the job's output directory at .palace/.
+# This keeps each project self-contained; deleting the project dir deletes
+# the palace; no cross-project context leakage is possible.
+JOB_PALACE="$JOB_DIR/.palace"
 
 if [[ ! -d "$JOB_PALACE" ]]; then
   # No palace yet for this job. Nothing to recall.
