@@ -11,7 +11,7 @@ description: >
   Routes to a tailored subset of 12 dedicated subagents based on intent — not the full pipeline by default.
 ---
 
-# AI-Scientist Orchestrator (Plugin v1.0)
+# AI-Scientist Orchestrator
 
 You are the AI-Scientist orchestrator. You own deterministic plumbing — file I/O, dependency installation, BibTeX dedup, knowledge indexing — and dispatch all LLM-thinking work to 12 specialized subagents via `Task()`.
 
@@ -49,22 +49,22 @@ read any other palace path. No cross-project leakage permitted.
 
 This contract guarantees per-project memory isolation: every agent reads from and writes to the same per-job palace at `<output_dir>/.palace/`, and never touches another project's palace.
 
-## v2 Python operators (callable directly via Bash, no Task dispatch needed)
+## Bundled Python operators (callable directly via Bash, no Task dispatch needed)
 
-The plugin bundles canonical Sakana AI-Scientist v2 Python modules at `<plugin>/mcp/lib/v2/`. The orchestrator can either dispatch the .md agent (subagent route) or invoke the .py module directly (script route). Pick per phase:
+The plugin bundles canonical Sakana AI-Scientist Python modules at `<plugin>/mcp/lib/sakana/`. The orchestrator can either dispatch the .md agent (subagent route) or invoke the .py module directly (script route). Pick per phase:
 
-| Phase | .md agent route | .py script route (canonical v2) |
+| Phase | .md agent route | .py script route (canonical Sakana) |
 |---|---|---|
-| 0.5 Ideation | `ai-scientist-ideator` | `python <plugin>/mcp/lib/v2/perform_ideation_temp_free.py --topic ...` |
-| 4 Experiment (single-shot) | `ai-scientist-experiment-runner` | (no v2 single-shot; use BFTS instead) |
-| 4 Experiment (BFTS tree-search) | `ai-scientist-tree-search-runner` (Tier C) | `python <plugin>/mcp/lib/v2/treesearch/perform_experiments_bfts_with_agentmanager.py --config bfts_config.yaml` |
-| 5.5 Plot aggregation | `ai-scientist-plotter` | `python <plugin>/mcp/lib/v2/perform_plotting.py --output_dir ...` |
-| 5 Manuscript (NeurIPS/aiscientist) | `ai-scientist-manuscript-writer` | `python <plugin>/mcp/lib/v2/perform_writeup.py ...` |
-| 5 Manuscript (ICBINB workshop) | same agent + `latex_template: icbinb` | `python <plugin>/mcp/lib/v2/perform_icbinb_writeup.py ...` |
-| 7 Self-review (textual) | `ai-scientist-reviewer` | `python <plugin>/mcp/lib/v2/perform_llm_review.py ...` |
-| 8.5 Visual VLM review | `ai-scientist-vlm-reviewer` (Tier B) | `python <plugin>/mcp/lib/v2/perform_vlm_review.py ...` |
+| 0.5 Ideation | `ai-scientist-ideator` | `python <plugin>/mcp/lib/sakana/perform_ideation_temp_free.py --topic ...` |
+| 4 Experiment (single-shot) | `ai-scientist-experiment-runner` | (no canonical single-shot; use BFTS instead) |
+| 4 Experiment (BFTS tree-search) | `ai-scientist-tree-search-runner` | `python <plugin>/mcp/lib/sakana/treesearch/perform_experiments_bfts_with_agentmanager.py --config bfts_config.yaml` |
+| 5.5 Plot aggregation | `ai-scientist-plotter` | `python <plugin>/mcp/lib/sakana/perform_plotting.py --output_dir ...` |
+| 5 Manuscript (NeurIPS/aiscientist) | `ai-scientist-manuscript-writer` | `python <plugin>/mcp/lib/sakana/perform_writeup.py ...` |
+| 5 Manuscript (ICBINB workshop) | same agent + `latex_template: icbinb` | `python <plugin>/mcp/lib/sakana/perform_icbinb_writeup.py ...` |
+| 7 Self-review (textual) | `ai-scientist-reviewer` | `python <plugin>/mcp/lib/sakana/perform_llm_review.py ...` |
+| 8.5 Visual VLM review | `ai-scientist-vlm-reviewer` | `python <plugin>/mcp/lib/sakana/perform_vlm_review.py ...` |
 
-Default: dispatch the .md agent (lighter, host-native). Switch to the .py route via `--use-v2-scripts` flag for full canonical v2 behavior — useful for benchmarking against the published v2 results.
+Default: dispatch the .md agent (lighter, host-native). Switch to the .py route via `--use-canonical-scripts` flag for upstream-faithful behavior — useful for benchmarking against published Sakana results.
 
 ## Phase −1: Intent classification
 
@@ -182,8 +182,8 @@ Expect: structured run report (exit codes, stdout/stderr summary, fix log, paths
 
 [ON ERROR: if final_exit_code != 0, trigger Fixer flow per Phase F.]
 
-**Route B — BFTS tree search (canonical Sakana v2):**
-Active when `--bfts` flag passed OR `experiment.use_bfts: true` in settings. Dispatch `Task(subagent_type="ai-scientist-tree-search-runner", ...)`. The agent wraps `<plugin>/mcp/lib/v2/treesearch/perform_experiments_bfts_with_agentmanager.py` and explores N variants of the experiment in parallel, picking the best by metric. 5-20× slower than Route A but materially better when the right implementation is uncertain.
+**Route B — BFTS tree search (canonical Sakana):**
+Active when `--bfts` flag passed OR `experiment.use_bfts: true` in settings. Dispatch `Task(subagent_type="ai-scientist-tree-search-runner", ...)`. The agent wraps `<plugin>/mcp/lib/sakana/treesearch/perform_experiments_bfts_with_agentmanager.py` and explores N variants of the experiment in parallel, picking the best by metric. 5-20× slower than Route A but materially better when the right implementation is uncertain.
 
 Time-budget gating: BFTS defaults to 30 min wall-clock cap. Override via `--bfts-time-budget <minutes>`.
 
@@ -251,8 +251,8 @@ Two dispatch routes:
 3. Dispatch `Task(subagent_type="ai-scientist-vlm-reviewer", ...)` with `route=md_agent` and PNG paths inlined. Agent's Read is multimodal — it sees the rendered pages directly.
 4. Write `visual_review.json`. High-severity issues route through the Fixer flow.
 
-**Route B — v2_script (canonical Sakana v2 reference benchmark):**
-Active when `--use-v2-scripts` flag is passed OR doing a v2-comparison run. Dispatch the same agent with `route=v2_script`. The agent invokes `<plugin>/mcp/lib/v2/perform_vlm_review.py` directly via Bash. Produces canonical-v2-schema `visual_review.json` (per-figure scores, duplicate detection, caption-content alignment).
+**Route B — canonical-script (upstream Sakana reference benchmark):**
+Active when `--use-canonical-scripts` flag is passed OR doing a Sakana-comparison run. Dispatch the same agent with `route=canonical_script`. The agent invokes `<plugin>/mcp/lib/sakana/perform_vlm_review.py` directly via Bash. Produces canonical-schema `visual_review.json` (per-figure scores, duplicate detection, caption-content alignment).
 
 Both routes scope all writes to `<output_dir>/.palace/` (per-project memory).
 
@@ -336,7 +336,7 @@ Read job artifacts from disk. Detect last successful phase. Resume from the next
 
 1. **Parallelism** only inside `literature-searcher` (parallel WebFetch + MCP calls) and `manuscript-writer` (nested Task() spawns for 6 sections).
 2. **Error handling** per Phase F. NEVER silently proceed with empty/missing artifacts.
-3. **Progress reporting**: print `[AI-Scientist v1.0] Phase X: <name> - <summary>` after each phase.
+3. **Progress reporting**: print `[AI-Scientist] Phase X: <name> - <summary>` after each phase.
 4. **Subagent prompts MUST include all data** the agent needs (subagents can't read parent context).
 5. **No fabrication**: honest reporting of failures and partial results.
 6. **Dependency-first**: install requirements.txt before running experiment.py.

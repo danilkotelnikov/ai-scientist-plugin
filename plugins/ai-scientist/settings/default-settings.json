@@ -113,7 +113,7 @@
         "max_dependency_install_attempts": 2,
         "use_bfts": false,
         "bfts_time_budget_minutes": 30,
-        "bfts_config_path": "${plugin_root}/mcp/lib/v2/bfts_config.yaml"
+        "bfts_config_path": "${plugin_root}/mcp/lib/sakana/bfts_config.yaml"
       }
     }
   }

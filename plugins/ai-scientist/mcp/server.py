@@ -439,7 +439,7 @@ def handle_request(request):
                     },
                     "serverInfo": {
                         "name": "ai-scientist",
-                        "version": "2.0.0"
+                        "version": "1.0.0"
                     }
                 }
             }
@@ -471,7 +471,7 @@ def handle_request(request):
 
 def run_server():
     """Run the MCP server (stdio transport)."""
-    print("AI-Scientist MCP Server v2.0 starting...", file=sys.stderr)
+    print("AI-Scientist MCP Server starting...", file=sys.stderr)
 
     for line in sys.stdin:
         line = line.strip()

@@ -1,6 +1,6 @@
 ---
 name: ai-scientist-tree-search-runner
-description: Best-First Tree Search (BFTS) experiment runner. Wraps the canonical Sakana AI-Scientist v2 treesearch/perform_experiments_bfts_with_agentmanager.py module. Explores multiple experiment-implementation variants in a tree structure, parallel-evaluates them, and picks the best by metric. 5-20x slower than single-shot experiment-runner but materially better when the optimal implementation is non-obvious. Gated on the --bfts flag.
+description: Best-First Tree Search (BFTS) experiment runner. Wraps the canonical Sakana AI-Scientist treesearch/perform_experiments_bfts_with_agentmanager.py module. Explores multiple experiment-implementation variants in a tree structure, parallel-evaluates them, and picks the best by metric. 5-20x slower than single-shot experiment-runner but materially better when the optimal implementation is non-obvious. Gated on the --bfts flag.
 model: opus
 thinking:
   enabled: true
@@ -26,7 +26,7 @@ tools:
 
 # Tree-Search Experiment Runner (BFTS)
 
-Replaces the single-shot `experiment-runner` agent for runs invoked with `--bfts`. Uses canonical Sakana v2's Best-First Tree Search to explore the space of possible implementations of the hypothesis's experiment, parallel-evaluate them, and pick the best.
+Replaces the single-shot `experiment-runner` agent for runs invoked with `--bfts`. Uses canonical Sakana's Best-First Tree Search to explore the space of possible implementations of the hypothesis's experiment, parallel-evaluate them, and pick the best.
 
 ## When the orchestrator dispatches this agent
 
@@ -40,7 +40,7 @@ The default experiment-runner is faster (single-shot + auto-fix), but BFTS produ
 
 - `<input name="output_dir">` — has `experiment.py` (seed implementation) + `requirements.txt` + `.venv/`
 - `<input name="hypothesis_md">` — full hypothesis text
-- `<input name="bfts_config_path">` — path to `bfts_config.yaml` (default: `<plugin>/mcp/lib/v2/bfts_config.yaml`)
+- `<input name="bfts_config_path">` — path to `bfts_config.yaml` (default: `<plugin>/mcp/lib/sakana/bfts_config.yaml`)
 - `<input name="time_budget_minutes">` — total wall-clock budget (default 30)
 - `<input name="palace_path">` — `<output_dir>/.palace`
 
@@ -62,14 +62,14 @@ on exit.
 
 ## Steps
 
-1. **Read** `<plugin>/mcp/lib/v2/bfts_config.yaml`. Note the defaults: `num_workers`, `max_depth`, `time_budget`, `eval_metric`. If the user passed overrides via flags, write a per-job config to `<output_dir>/bfts_config.yaml` with the overrides applied.
+1. **Read** `<plugin>/mcp/lib/sakana/bfts_config.yaml`. Note the defaults: `num_workers`, `max_depth`, `time_budget`, `eval_metric`. If the user passed overrides via flags, write a per-job config to `<output_dir>/bfts_config.yaml` with the overrides applied.
 
 2. **Read** `experiment.py` from output_dir as the seed/root node of the tree.
 
 3. **Invoke BFTS** via Bash:
    ```bash
    cd <output_dir> && \
-   .venv/Scripts/python <plugin>/mcp/lib/v2/treesearch/perform_experiments_bfts_with_agentmanager.py \
+   .venv/Scripts/python <plugin>/mcp/lib/sakana/treesearch/perform_experiments_bfts_with_agentmanager.py \
      --config <output_dir>/bfts_config.yaml \
      --workspace <output_dir> \
      --hypothesis <output_dir>/hypothesis.md \

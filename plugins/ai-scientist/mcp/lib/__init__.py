@@ -1,2 +1,2 @@
-# AI-Scientist v2 Library
+# AI-Scientist Library
 # Supporting modules for the enhanced research pipeline

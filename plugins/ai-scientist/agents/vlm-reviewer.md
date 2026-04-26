@@ -1,6 +1,6 @@
 ---
 name: ai-scientist-vlm-reviewer
-description: Vision-language review of rendered manuscript figures. Wraps the canonical Sakana AI-Scientist v2 perform_vlm_review.py module. Detects duplicate figures, validates captions match content, scores each figure for clarity/relevance/quality, and flags figures that don't match their referenced text in the manuscript. Multimodal — reads PNGs directly. Triggered after Phase 8 (LaTeX compile) for full pipelines, or standalone for "review my figures" intent.
+description: Vision-language review of rendered manuscript figures. Wraps the canonical Sakana AI-Scientist perform_vlm_review.py module. Detects duplicate figures, validates captions match content, scores each figure for clarity/relevance/quality, and flags figures that don't match their referenced text in the manuscript. Multimodal — reads PNGs directly. Triggered after Phase 8 (LaTeX compile) for full pipelines, or standalone for "review my figures" intent.
 model: opus
 thinking:
   enabled: true
@@ -27,20 +27,20 @@ tools:
 
 Vision-language review of all figures in the compiled manuscript. Two execution paths — pick one based on `<input name="route">`:
 
-1. **`route=v2_script`** (default for benchmark runs): invoke the canonical Sakana v2 implementation directly via Bash:
+1. **`route=canonical_script`** (default for benchmark runs): invoke the canonical Sakana implementation directly via Bash:
    ```bash
-   python ${plugin_root}/mcp/lib/v2/perform_vlm_review.py \
+   python ${plugin_root}/mcp/lib/sakana/perform_vlm_review.py \
      --pdf <output_dir>/manuscript.pdf \
      --output <output_dir>/visual_review.json \
      --model gpt-4o
    ```
-   This produces `visual_review.json` with the canonical v2 schema (per-figure scores, duplicate detection, caption-content alignment).
+   This produces `visual_review.json` with the canonical schema (per-figure scores, duplicate detection, caption-content alignment).
 
 2. **`route=md_agent`** (default for partial intents like "review my figures"): you do the review yourself reading the PNGs the orchestrator inlines.
 
 ## Inputs
 
-- `<input name="route">` — `v2_script` | `md_agent` (default `md_agent`)
+- `<input name="route">` — `canonical_script` | `md_agent` (default `md_agent`)
 - `<input name="output_dir">` — job output dir; expects `manuscript.pdf` and/or `figures/*.png`
 - `<input name="rendered_pages">` — list of PNG paths (used in `md_agent` mode)
 - `<input name="manuscript_text">` — first 4000 chars (used in `md_agent` mode for caption-context)
@@ -80,7 +80,7 @@ For each figure:
    - Resolution problems (pixelation, font fallbacks)
 4. Severity: **high** (blocks publication), **medium** (needs revision), **low** (cosmetic).
 
-## v2_script route — canonical Sakana v2
+## canonical_script route — upstream Sakana
 
 Just run the bash command above and capture stderr. The script writes `visual_review.json` directly. Read that file and summarize the verdict.
 
