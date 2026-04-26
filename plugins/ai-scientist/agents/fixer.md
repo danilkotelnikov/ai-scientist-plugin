@@ -9,6 +9,11 @@ codex:
   model: gpt-5.4
   reasoning_effort: high
   max_output_tokens: 24576
+gemini:
+  model: gemini-3-flash-preview
+  thinking_budget: 16384
+  max_output_tokens: 16384
+  context_window: 1000000
 tools:
   - Read
   - AskUserQuestion

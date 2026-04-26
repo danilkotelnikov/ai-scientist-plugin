@@ -1,0 +1,75 @@
+{
+  "name": "ai-scientist",
+  "version": "1.0.0",
+  "description": "Agentic AI-Scientist research pipeline. End-to-end scientific research with 12 specialized subagents (Ideator, Hypothesizer, CodeGenerator, ManuscriptWriter, Reviewer, etc.), each on a pinned model. Auto-routes natural-language requests to the smallest agent subset.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "ai-scientist": {
+      "command": "python",
+      "args": [
+        "${extensionPath}/mcp/server.py",
+        "--mode",
+        "stdio"
+      ],
+      "env": {
+        "AI_SCIENTIST_HOME": "${env:HOME}/.ai-scientist",
+        "PYTHONPATH": "${extensionPath}/mcp/lib"
+      },
+      "cwd": "${extensionPath}"
+    },
+    "mempalace": {
+      "command": "mempalace-mcp",
+      "env": {
+        "MEMPALACE_ROOT": "${env:HOME}/.ai-scientist/palace"
+      }
+    },
+    "openalex": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/drAbreu/alex-mcp.git@4.1.0",
+        "alex-mcp"
+      ],
+      "env": {
+        "OPENALEX_MAILTO": "${env:OPENALEX_EMAIL}",
+        "OPENALEX_RATE_PER_SEC": "10"
+      }
+    },
+    "semanticscholar": {
+      "command": "python",
+      "args": [
+        "${env:HOME}/.ai-scientist/external/semanticscholar-MCP-Server/semantic_scholar_server.py"
+      ],
+      "env": {
+        "SEMANTIC_SCHOLAR_API_KEY": "${env:SEMANTIC_SCHOLAR_KEY}"
+      }
+    },
+    "arxiv": {
+      "command": "uvx",
+      "args": ["arxiv-mcp-server"]
+    },
+    "biorxiv": {
+      "command": "python",
+      "args": [
+        "${env:HOME}/.ai-scientist/external/biorxiv-mcp/server.py"
+      ]
+    },
+    "pubmed": {
+      "command": "npx",
+      "args": ["-y", "pubmed-mcp"]
+    },
+    "annas-mcp": {
+      "command": "npx",
+      "args": ["-y", "annas-mcp", "mcp"],
+      "env": {
+        "ANNAS_BASE_URL": "${env:ANNAS_BASE_URL}",
+        "ANNAS_DOWNLOAD_PATH": "${env:ANNAS_DOWNLOAD_PATH}",
+        "ANNAS_SECRET_KEY": "${env:ANNAS_SECRET_KEY}"
+      }
+    },
+    "fetcher": {
+      "command": "npx",
+      "args": ["-y", "fetcher-mcp"]
+    }
+  }
+}

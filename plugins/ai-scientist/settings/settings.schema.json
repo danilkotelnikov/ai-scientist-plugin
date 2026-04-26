@@ -42,6 +42,32 @@
                 }
               }
             },
+            "gemini_agents": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z_]+$": {
+                  "type": "object",
+                  "properties": {
+                    "model": {
+                      "enum": [
+                        "gemini-3.1-pro-preview",
+                        "gemini-3-flash-preview",
+                        "gemini-3.1-flash-lite-preview",
+                        "gemini-2.5-pro",
+                        "gemini-2.5-flash",
+                        "gemini-2.5-flash-lite",
+                        "inherit"
+                      ]
+                    },
+                    "thinking_level": { "enum": ["low", "medium", "high"] },
+                    "thinking_budget": { "type": "integer", "minimum": 0, "maximum": 32768 },
+                    "max_output_tokens": { "type": "integer", "minimum": 1024, "maximum": 262144 },
+                    "context_window": { "type": "integer", "minimum": 32768, "maximum": 2000000 }
+                  },
+                  "required": ["model"]
+                }
+              }
+            },
             "interactivity": { "enum": ["none", "checkpoints", "full"] },
             "auto_fix_max_rounds": { "type": "integer", "minimum": 0, "maximum": 10 },
             "fixer_max_rounds_per_phase": { "type": "integer", "minimum": 0, "maximum": 10 },

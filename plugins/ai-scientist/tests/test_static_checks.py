@@ -112,3 +112,62 @@ def test_light_agent_uses_gpt54_high(agent_name):
         f"{agent_name}.md: light agent must use gpt-5.4"
     assert codex["reasoning_effort"] == "high", \
         f"{agent_name}.md: light agent must use reasoning_effort=high"
+
+
+# Gemini-compatibility checks
+ALLOWED_GEMINI_MODELS = {
+    "gemini-3.1-pro-preview",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "inherit",
+}
+ALLOWED_THINKING_LEVELS = {"low", "medium", "high"}
+
+
+@pytest.mark.parametrize("agent_name", sorted(EXPECTED_AGENTS))
+def test_agent_has_gemini_block(agent_name):
+    fm = parse_frontmatter(AGENTS_DIR / f"{agent_name}.md")
+    assert "gemini" in fm, f"{agent_name}.md: missing 'gemini:' frontmatter block"
+    gem = fm["gemini"]
+    assert gem.get("model") in ALLOWED_GEMINI_MODELS, \
+        f"{agent_name}.md: gemini.model must be one of {ALLOWED_GEMINI_MODELS}, got {gem.get('model')!r}"
+    assert isinstance(gem.get("max_output_tokens"), int), \
+        f"{agent_name}.md: gemini.max_output_tokens must be int"
+    assert isinstance(gem.get("context_window"), int), \
+        f"{agent_name}.md: gemini.context_window must be int"
+    # Either thinking_level (Gemini 3.x Pro) or thinking_budget (Flash + 2.5)
+    has_level = "thinking_level" in gem
+    has_budget = "thinking_budget" in gem
+    assert has_level ^ has_budget, \
+        f"{agent_name}.md: must declare exactly ONE of thinking_level / thinking_budget"
+    if has_level:
+        assert gem["thinking_level"] in ALLOWED_THINKING_LEVELS, \
+            f"{agent_name}.md: invalid thinking_level"
+    if has_budget:
+        assert isinstance(gem["thinking_budget"], int) and 0 <= gem["thinking_budget"] <= 32768, \
+            f"{agent_name}.md: thinking_budget out of range"
+
+
+@pytest.mark.parametrize("agent_name", sorted(HEAVY_AGENTS))
+def test_heavy_agent_uses_gemini3_pro_high(agent_name):
+    fm = parse_frontmatter(AGENTS_DIR / f"{agent_name}.md")
+    gem = fm["gemini"]
+    assert gem["model"] == "gemini-3.1-pro-preview", \
+        f"{agent_name}.md: heavy agent must use gemini-3.1-pro-preview"
+    assert gem.get("thinking_level") == "high", \
+        f"{agent_name}.md: heavy agent must use thinking_level=high"
+    assert gem["context_window"] == 2000000, \
+        f"{agent_name}.md: heavy agent must use context_window=2000000"
+
+
+@pytest.mark.parametrize("agent_name", sorted(LIGHT_AGENTS))
+def test_light_agent_uses_gemini3_flash(agent_name):
+    fm = parse_frontmatter(AGENTS_DIR / f"{agent_name}.md")
+    gem = fm["gemini"]
+    assert gem["model"] == "gemini-3-flash-preview", \
+        f"{agent_name}.md: light agent must use gemini-3-flash-preview"
+    assert "thinking_budget" in gem, \
+        f"{agent_name}.md: light agent must use thinking_budget (not thinking_level)"

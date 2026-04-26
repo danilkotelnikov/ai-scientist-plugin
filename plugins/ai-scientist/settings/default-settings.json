@@ -29,6 +29,20 @@
         "meta_analyst":        { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 16384 },
         "fixer":               { "model": "gpt-5.4", "reasoning_effort": "high",  "max_output_tokens": 24576 }
       },
+      "gemini_agents": {
+        "ideator":             { "model": "gemini-3.1-pro-preview",   "thinking_level": "high",      "max_output_tokens": 65536, "context_window": 2000000 },
+        "codebase_scanner":    { "model": "gemini-3-flash-preview",   "thinking_budget": 8192,        "max_output_tokens": 8192,  "context_window": 1000000 },
+        "literature_searcher": { "model": "gemini-3-flash-preview",   "thinking_budget": 8192,        "max_output_tokens": 8192,  "context_window": 1000000 },
+        "hypothesizer":        { "model": "gemini-3.1-pro-preview",   "thinking_level": "high",      "max_output_tokens": 65536, "context_window": 2000000 },
+        "code_generator":      { "model": "gemini-3.1-pro-preview",   "thinking_level": "high",      "max_output_tokens": 65536, "context_window": 2000000 },
+        "experiment_runner":   { "model": "gemini-3-flash-preview",   "thinking_budget": 8192,        "max_output_tokens": 8192,  "context_window": 1000000 },
+        "plotter":             { "model": "gemini-3-flash-preview",   "thinking_budget": 8192,        "max_output_tokens": 8192,  "context_window": 1000000 },
+        "manuscript_writer":   { "model": "gemini-3.1-pro-preview",   "thinking_level": "high",      "max_output_tokens": 65536, "context_window": 2000000 },
+        "citator":             { "model": "gemini-3-flash-preview",   "thinking_budget": 8192,        "max_output_tokens": 8192,  "context_window": 1000000 },
+        "reviewer":            { "model": "gemini-3.1-pro-preview",   "thinking_level": "high",      "max_output_tokens": 65536, "context_window": 2000000 },
+        "meta_analyst":        { "model": "gemini-3-flash-preview",   "thinking_budget": 8192,        "max_output_tokens": 8192,  "context_window": 1000000 },
+        "fixer":               { "model": "gemini-3-flash-preview",   "thinking_budget": 16384,       "max_output_tokens": 16384, "context_window": 1000000 }
+      },
       "interactivity": "checkpoints",
       "auto_fix_max_rounds": 3,
       "fixer_max_rounds_per_phase": 3,

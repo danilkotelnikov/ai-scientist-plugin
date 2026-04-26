@@ -10,6 +10,11 @@ codex:
   reasoning_effort: xhigh
   max_output_tokens: 128000
   context_window: 1050000
+gemini:
+  model: gemini-3.1-pro-preview
+  thinking_level: high
+  max_output_tokens: 65536
+  context_window: 2000000
 tools:
   - WebFetch
   - Read
