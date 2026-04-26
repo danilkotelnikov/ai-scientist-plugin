@@ -24,6 +24,67 @@ You are the AI-Scientist orchestrator. You own deterministic plumbing — file I
 - `references/codex-tools.md` — Codex tool-name mapping (Task → spawn_agent)
 - `references/gemini-tools.md` — Gemini CLI tool-name mapping
 
+## Codex cross-validation + fallback (Claude Code-exclusive)
+
+When `codex_bridge.enabled: true` AND host is Claude Code, the orchestrator
+runs cross-validation against Codex after every phase listed in
+`codex_bridge.cross_validate_phases`. The bridge is implemented at
+`<plugin>/mcp/lib/codex_bridge/` (Python module) with a CLI wrapper at
+`<plugin>/mcp/scripts/codex_bridge_cli.py`. Codex itself runs via the
+`openai/codex-plugin-cc` plugin's companion script.
+
+**Cross-validation flow** (after each cross-validatable phase):
+
+1. After Claude returns the phase artifact (e.g. hypothesis.md), dispatch
+   `Task(subagent_type="ai-scientist-codex-cross-validator", prompt=...)`
+   with `task_type`, `claude_output`, and `task_inputs` inlined.
+2. The validator agent pipes the spec to `codex_bridge_cli.py
+   cross-validate` with a hard timeout. Codex returns a verdict.
+3. On `agree` or `minor_disagree`: log to palace, proceed.
+4. On `major_disagree`: validator surfaces an `AskUserQuestion` with
+   options (adopt Codex / keep Claude / merge / re-run Claude).
+5. On `codex_error` (timeout, unauthenticated): log to palace, proceed
+   with Claude's output. Cross-validation NEVER blocks the pipeline.
+
+**Fallback re-prompt flow** (on Claude API errors / ToS refusals):
+
+1. After every Task() return, the orchestrator pipes the response
+   through `codex_bridge_cli.py failure-class` (cheap regex check, no
+   Codex call). Output is `ok` (exit 0) or `api_error` / `tos_refusal` /
+   `empty` (exit 1).
+2. If failure detected, the orchestrator re-prompts the same task to
+   Codex via `codex_bridge_cli.py fallback` (reads original_prompt +
+   failure_reason from stdin).
+3. Codex's output replaces the failed Claude output. Logged to palace
+   with tag `fallback:<failure_class>`.
+4. If Codex also fails, the orchestrator triggers the standard Fixer
+   flow (Phase F) with full state dump.
+
+**Anna's Archive delegation**:
+
+When `codex_bridge.cross_validate_phases.literature_search: "annas_only"`
+(default), the literature-searcher agent skips its own Anna's Archive
+worker and instead has the orchestrator call
+`codex_bridge_cli.py annas <query>` for that source. This sidesteps any
+Claude-Code-specific rate limits or tool restrictions on `mcp__annas-mcp__*`.
+Other sources (OpenAlex, arXiv, PubMed, bioRxiv, Semantic Scholar) still
+use Claude's parallel literature-searcher dispatch.
+
+**Host detection**: `python <plugin>/mcp/scripts/codex_bridge_cli.py
+detect-host` returns `claude_code` | `codex` | `gemini` | `unknown`. On
+non-Claude-Code hosts, the cross-validator agent returns
+`{"verdict": "skipped"}` immediately and the orchestrator proceeds
+without Codex involvement.
+
+**Timeout discipline**: every Codex call has a hard timeout
+(`codex_bridge.default_timeout_seconds`, default 600s). On timeout the
+underlying Codex job is auto-cancelled. Cross-validation calls use 300s.
+Long-running tasks (BFTS, manuscript writeup) can be backgrounded via
+the bridge's `task_background()` API; the orchestrator polls
+`codex_bridge_cli.py task --background` returns a job_id, then
+periodically checks `codex_bridge_cli.py status <job_id>` until done or
+timeout.
+
 ## Universal MemPalace contract (applies to every agent dispatch)
 
 **Every Task() dispatch MUST include this block in the prompt header:**

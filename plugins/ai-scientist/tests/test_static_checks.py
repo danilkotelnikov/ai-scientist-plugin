@@ -13,8 +13,9 @@ EXPECTED_AGENTS = {
     "hypothesizer", "code-generator", "experiment-runner",
     "plotter", "manuscript-writer", "citator", "reviewer",
     "meta-analyst", "fixer",
-    "vlm-reviewer",        # Tier B
-    "tree-search-runner",  # Tier C
+    "vlm-reviewer",                 # Tier B
+    "tree-search-runner",           # Tier C
+    "codex-cross-validator",        # Codex bridge (CC-exclusive)
 }
 
 REQUIRED_FRONTMATTER_KEYS = {"name", "description", "model", "thinking", "tools"}

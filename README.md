@@ -12,6 +12,7 @@ End-to-end agentic research pipeline that runs across **Claude Code, Codex CLI, 
 - **Dual-route operator** — every phase can run via the .md subagent (host-native, lightweight) OR via the canonical Sakana Python script bundled at `mcp/lib/sakana/` (upstream-faithful, benchmark-comparable). Pick per phase.
 - **BFTS tree-search experiment runner** (canonical Sakana algorithm) — explores N implementation variants in parallel and picks the best by metric. Gated on `--bfts`.
 - **VLM figure review** — duplicate detection, caption-content alignment, per-figure scoring 1–4 across clarity/relevance/quality.
+- **Codex cross-validation (Claude Code-exclusive)** — every ideation / hypothesis / codegen / manuscript / review output is cross-checked against Codex via the [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) bridge. On disagreement, the user is prompted to adopt Codex's alternative, keep Claude's output, merge, or re-run. On Claude API errors / ToS refusals, the same task auto-falls-back to Codex. Anna's Archive searches are delegated to Codex by default.
 - **LLM-driven install prompts** — copy-paste prompts at `docs/AGENT_INSTALL_PROMPTS.md` that any agent can follow to install the plugin end-to-end on any host.
 
 ## Quick start
@@ -99,7 +100,7 @@ look at advanced NN algorithms and write code, then analyze # → Lit + CodeGen 
 compare RWKV vs Mamba experimentally                        # → CodeGen + Experiment + Plotter + Stats
 ```
 
-## The 14 agents
+## The 15 agents
 
 ### Per-host model pinning
 
@@ -121,6 +122,9 @@ Every agent declares its model in three frontmatter blocks (`model:` for Claude 
 | 12 | fixer | sonnet, 16k | gpt-5.4 high, 24k out | gemini-3-flash-preview, budget=16k, 16k out, 1M ctx |
 | 13 | **vlm-reviewer** | opus, 48k | gpt-5.5 high, 65k out | gemini-3.1-pro-preview, level=high, 32k out, 2M ctx |
 | 14 | **tree-search-runner** | opus, **64k** | gpt-5.5 xhigh, 65k out | gemini-3.1-pro-preview, level=high, 32k out, 2M ctx |
+| 15 | **codex-cross-validator** *(CC-exclusive)* | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
+
+> Agent 15 is a meta-agent that pipes outputs to Codex via the bridge CLI. It only runs on Claude Code (skipped on Codex/Gemini hosts).
 
 ### Pipeline phases
 
@@ -161,6 +165,60 @@ Every agent declares its model in three frontmatter blocks (`model:` for Claude 
 | `fetcher` | `fetcher-mcp` (npm via npx) | HTTP fallback for Consensus + Crossref |
 
 The install script auto-installs all of these. See **[Per-MCP configuration checklist](docs/AGENT_INSTALL_PROMPTS.md#per-mcp-configuration-checklist-referenced-by-every-install-prompt)** for env-var requirements and verification probes.
+
+## Codex bridge (Claude Code-exclusive)
+
+Programmatic delegation to Codex via the [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin. The bridge is a Python module (`mcp/lib/codex_bridge/`) with a CLI wrapper (`mcp/scripts/codex_bridge_cli.py`) so any agent, hook, or script can invoke Codex with strict timeouts and auto-cancel.
+
+**Three integration points:**
+
+1. **Cross-validation** — after every cross-validatable Claude phase (configurable per-phase: ideation, hypothesis, code_generation, manuscript, review), the orchestrator dispatches `ai-scientist-codex-cross-validator`. The validator pipes Claude's output + the original task inputs to Codex, asks Codex to score against a per-task rubric, and returns one of:
+   - `agree` → proceed silently
+   - `minor_disagree` → log discrepancy to palace, proceed
+   - `major_disagree` → surface `AskUserQuestion` with options: **adopt Codex's alternative** / **keep Claude's** / **merge** / **re-run Claude with discrepancies as feedback**
+   - `codex_error` → log, proceed with Claude's output (cross-validation never blocks the pipeline)
+
+2. **Auto-fallback on Claude failure** — a `PostToolUse` hook (`hooks/codex-fallback-detect.sh`) runs after every `Task` call. It pipes the response through `codex_bridge_cli.py failure-class` (cheap regex check, no Codex call), which returns `api_error` / `tos_refusal` / `empty` / `ok`. On non-`ok`, the orchestrator automatically re-prompts the same task to Codex via `codex_bridge_cli.py fallback`. Codex's output replaces Claude's, logged with tag `fallback:<class>`.
+
+3. **Anna's Archive delegation** — when `codex_bridge.cross_validate_phases.literature_search: "annas_only"` (default), the literature-searcher's Anna's Archive worker is replaced by `codex_bridge_cli.py annas <query>`. Sidesteps any Claude-Code-specific rate limits or restrictions on `mcp__annas-mcp__*`. Other sources (OpenAlex, arXiv, PubMed, bioRxiv, Semantic Scholar) still use Claude's parallel literature-searcher dispatch.
+
+**Timeout discipline** — every Codex call has a hard timeout (`codex_bridge.default_timeout_seconds`, default 600s; cross-validation 300s). On timeout the underlying Codex job is auto-cancelled. Long tasks (BFTS, manuscript writeup) can be backgrounded; the orchestrator polls `codex_bridge_cli.py status <job_id>` until done or timeout.
+
+**Activation requires:**
+1. Host is Claude Code (auto-detected via `~/.claude/`).
+2. `openai/codex-plugin-cc` is installed: `/plugin install codex@openai-codex` from inside Claude Code.
+3. Codex CLI is authenticated (ChatGPT subscription or `OPENAI_API_KEY`).
+4. `codex_bridge.enabled: true` in settings (default).
+
+If any precondition fails, the orchestrator skips Codex calls and the rest of the pipeline runs on Claude alone — no errors raised.
+
+**CLI surface** (usable from any shell or hook):
+
+```bash
+# Submit a task
+python <plugin>/mcp/scripts/codex_bridge_cli.py task "Refactor utils.py" --timeout 300
+
+# Cross-validate (read JSON spec from stdin)
+echo '{"task_type":"code","claude_output":"...","task_inputs":{...}}' \
+  | python codex_bridge_cli.py cross-validate
+
+# Re-prompt to Codex when Claude failed
+echo '{"original_prompt":"...","failure_reason":"tos_refusal"}' \
+  | python codex_bridge_cli.py fallback
+
+# Delegate Anna's Archive search to Codex
+python codex_bridge_cli.py annas "ridge regression heteroscedastic"
+
+# Check failure class of arbitrary text
+echo "I cannot help with that" | python codex_bridge_cli.py failure-class
+# -> tos_refusal  (exit 1)
+
+# Detect host
+python codex_bridge_cli.py detect-host
+# -> claude_code | codex | gemini | unknown
+```
+
+Full settings at [`plugins/ai-scientist/settings/default-settings.json`](plugins/ai-scientist/settings/default-settings.json) under `codex_bridge`.
 
 ## Memory model — per-project, no cross-project leakage
 

@@ -32,6 +32,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/codex-fallback-detect.sh"
+          }
+        ]
+      }
     ]
   }
 }

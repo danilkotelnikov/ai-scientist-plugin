@@ -114,6 +114,34 @@
         "use_bfts": false,
         "bfts_time_budget_minutes": 30,
         "bfts_config_path": "${plugin_root}/mcp/lib/sakana/bfts_config.yaml"
+      },
+      "codex_bridge": {
+        "enabled": true,
+        "host_required": "claude_code",
+        "default_model": "gpt-5.4-mini",
+        "default_effort": "high",
+        "default_timeout_seconds": 600,
+        "background_for_long_tasks": true,
+        "poll_interval_seconds": 5,
+        "max_retries": 2,
+        "fallback_on_api_error": true,
+        "fallback_on_tos_refusal": true,
+        "delegate_annas_search": true,
+        "log_to_palace": true,
+        "cross_validate_phases": {
+          "ideation": "always",
+          "hypothesis": "always",
+          "code_generation": "always",
+          "experiment_results": "on_anomaly",
+          "manuscript": "always",
+          "review": "always",
+          "literature_search": "annas_only"
+        },
+        "discrepancy_thresholds": {
+          "minor_disagree_confidence_min": 0.5,
+          "major_disagree_confidence_min": 0.7
+        },
+        "cli_path": "${plugin_root}/mcp/scripts/codex_bridge_cli.py"
       }
     }
   }

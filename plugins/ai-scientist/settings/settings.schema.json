@@ -137,7 +137,39 @@
               "properties": {
                 "timeout_seconds": { "type": "integer", "minimum": 30, "maximum": 3600 },
                 "venv_per_job": { "type": "boolean" },
-                "max_dependency_install_attempts": { "type": "integer", "minimum": 1, "maximum": 5 }
+                "max_dependency_install_attempts": { "type": "integer", "minimum": 1, "maximum": 5 },
+                "use_bfts": { "type": "boolean" },
+                "bfts_time_budget_minutes": { "type": "integer", "minimum": 5, "maximum": 240 },
+                "bfts_config_path": { "type": "string" }
+              }
+            },
+            "codex_bridge": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "host_required": { "enum": ["claude_code", "any"] },
+                "default_model": { "type": "string" },
+                "default_effort": { "enum": ["minimal", "low", "medium", "high", "xhigh"] },
+                "default_timeout_seconds": { "type": "integer", "minimum": 30, "maximum": 3600 },
+                "background_for_long_tasks": { "type": "boolean" },
+                "poll_interval_seconds": { "type": "number", "minimum": 1, "maximum": 60 },
+                "max_retries": { "type": "integer", "minimum": 0, "maximum": 5 },
+                "fallback_on_api_error": { "type": "boolean" },
+                "fallback_on_tos_refusal": { "type": "boolean" },
+                "delegate_annas_search": { "type": "boolean" },
+                "log_to_palace": { "type": "boolean" },
+                "cross_validate_phases": {
+                  "type": "object",
+                  "additionalProperties": { "enum": ["always", "off", "on_anomaly", "annas_only"] }
+                },
+                "discrepancy_thresholds": {
+                  "type": "object",
+                  "properties": {
+                    "minor_disagree_confidence_min": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "major_disagree_confidence_min": { "type": "number", "minimum": 0, "maximum": 1 }
+                  }
+                },
+                "cli_path": { "type": "string" }
               }
             }
           }
