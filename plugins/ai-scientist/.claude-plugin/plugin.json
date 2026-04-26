@@ -1,6 +1,6 @@
 {
   "name": "ai-scientist",
-  "description": "Agentic AI-Scientist research pipeline. End-to-end scientific research with 12 specialized subagents (Ideator, Hypothesizer, CodeGenerator, ManuscriptWriter, Reviewer, etc.), each on a pinned model with extended thinking. Auto-routes natural-language requests (review/analyze/plot/code) to the smallest agent subset. Produces both LaTeX and Word manuscripts with visual validation.",
+  "description": "Cross-host agentic research pipeline (Claude Code, Codex CLI, Gemini CLI). 14 dedicated subagents with per-host model pinning, BFTS tree-search experiments, VLM figure review, per-project MemPalace memory (no cross-project leakage), and 9 pre-configured MCP servers (OpenAlex, Semantic Scholar, arXiv, bioRxiv, PubMed, Anna's Archive, fetcher, plus the plugin's own knowledge MCP). Bundles canonical Sakana AI-Scientist Python (~10k LOC) for benchmark-faithful runs alongside lightweight host-native agents. Produces LaTeX + Word manuscripts with multimodal figure validation.",
   "version": "1.0.0",
   "author": {
     "name": "scienceboylovesyou",
@@ -14,6 +14,12 @@
     "scientific-writing",
     "literature-review",
     "experiment-automation",
-    "peer-review"
+    "peer-review",
+    "bfts",
+    "tree-search",
+    "vlm",
+    "mempalace",
+    "cross-host",
+    "mcp"
   ]
 }

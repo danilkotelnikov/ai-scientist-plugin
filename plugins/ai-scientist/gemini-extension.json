@@ -1,7 +1,7 @@
 {
   "name": "ai-scientist",
   "version": "1.0.0",
-  "description": "Agentic AI-Scientist research pipeline. End-to-end scientific research with 12 specialized subagents (Ideator, Hypothesizer, CodeGenerator, ManuscriptWriter, Reviewer, etc.), each on a pinned model. Auto-routes natural-language requests to the smallest agent subset.",
+  "description": "Cross-host agentic research pipeline. 14 dedicated subagents with per-host model pinning (Gemini 3.1 Pro Preview for heavy roles + Gemini 3 Flash Preview for light), BFTS tree-search experiments, VLM figure review, per-project MemPalace memory, and 9 pre-configured MCP servers. Bundles canonical Sakana Python alongside lightweight host-native agents.",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
     "ai-scientist": {
