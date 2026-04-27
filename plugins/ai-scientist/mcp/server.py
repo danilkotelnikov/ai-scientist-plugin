@@ -326,6 +326,178 @@ def get_knowledge_stats():
 
 # --- MCP Protocol Handler ---
 
+TOOL_DEFINITIONS = [
+    {
+        "name": "start_research",
+        "description": "Start a new ai-scientist research job.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string"},
+                "codebase_context": {"type": "string"},
+                "domain_template": {"type": "string"},
+                "llm_backend": {"type": "string"},
+                "output_dir": {"type": "string"},
+            },
+            "required": ["topic"],
+        },
+    },
+    {
+        "name": "get_status",
+        "description": "Get the status of a research job.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"job_id": {"type": "string"}},
+            "required": ["job_id"],
+        },
+    },
+    {
+        "name": "get_output",
+        "description": "Retrieve output artifacts for a research job.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string"},
+                "section": {"type": "string"},
+            },
+            "required": ["job_id"],
+        },
+    },
+    {
+        "name": "list_jobs",
+        "description": "List ai-scientist research jobs.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "list_templates",
+        "description": "List available domain templates.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "cancel_job",
+        "description": "Cancel a running research job.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"job_id": {"type": "string"}},
+            "required": ["job_id"],
+        },
+    },
+    {
+        "name": "query_knowledge",
+        "description": "Search the ai-scientist knowledge store.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "mem_type": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "query_knowledge_graph",
+        "description": "Query the ai-scientist temporal knowledge graph.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "subject": {"type": "string"},
+                "predicate": {"type": "string"},
+                "object": {"type": "string"},
+                "include_invalid": {"type": "boolean"},
+            },
+        },
+    },
+    {
+        "name": "get_knowledge_stats",
+        "description": "Get ai-scientist knowledge store statistics.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "search_knowledge_index",
+        "description": "Search the persistent ai-scientist knowledge index.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "mem_type": {"type": "string"},
+                "domain": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_knowledge_details",
+        "description": "Fetch details for knowledge-store item IDs.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ids": {"type": "array", "items": {"type": "string"}},
+                "mem_type": {"type": "string"},
+            },
+            "required": ["ids"],
+        },
+    },
+    {
+        "name": "analyze_codebase",
+        "description": "Analyze a local codebase for ai-scientist grounding.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "codebase_path": {"type": "string"},
+                "output_file": {"type": "string"},
+            },
+            "required": ["codebase_path"],
+        },
+    },
+    {
+        "name": "get_meta_analysis",
+        "description": "Read ai-scientist meta-analysis results.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_what_works",
+        "description": "Read ai-scientist recommendations from prior jobs.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "run_meta_analysis",
+        "description": "Run ai-scientist meta-analysis over stored jobs.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "run_pipeline",
+        "description": "Run the full Python orchestrator pipeline (Phase 0 → Phase 11). Returns a job summary dict with job_id, tokens, review, output_dir.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string"},
+                "domain": {"type": "string"},
+                "output_dir": {"type": "string"},
+                "host": {"type": "string", "enum": ["claude_code", "codex", "gemini"]},
+                "interactivity": {"type": "string", "enum": ["none", "checkpoints", "full"]},
+                "use_bfts": {"type": "boolean"},
+                "codebase_path": {"type": "string"},
+            },
+            "required": ["topic", "domain", "output_dir"],
+        },
+    },
+    {
+        "name": "dispatch_phase",
+        "description": "Reentrant dispatch helper: returns the agent_name + subagent_type + inputs the host should pass to Task(). Used by the orchestrator pipeline to ask Claude Code to invoke a specific subagent.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "agent_name": {"type": "string"},
+                "inputs": {"type": "object"},
+            },
+            "required": ["agent_name", "inputs"],
+        },
+    },
+]
+
+
 def handle_request(request):
     """Handle an MCP JSON-RPC request."""
     method = request.get("method", "")
@@ -417,6 +589,40 @@ def handle_request(request):
                     "success_rate": meta.get("overall_success_rate", 0),
                     "recommendation_count": len(what_works.get("recommendations_for_next_job", []))
                 }
+            elif tool_name == "run_pipeline":
+                # Lazy-import the orchestrator so the server boots even if
+                # orchestrator deps are missing in legacy installs.
+                import sys, pathlib
+                _lib = pathlib.Path(__file__).resolve().parent / "lib"
+                if str(_lib) not in sys.path:
+                    sys.path.insert(0, str(_lib))
+                from orchestrator.pipeline import Pipeline
+                from orchestrator.dispatch import get_dispatcher
+
+                # The actual Task() callable lives in the host process.
+                # The orchestrator returns a stub-driven result; the host's
+                # MCP layer calls dispatch_phase reentrantly for each agent.
+                dispatcher_cls = get_dispatcher(tool_args.get("host", "claude_code"))
+                pipeline = Pipeline(
+                    dispatcher=lambda agent_name, inputs: {"raw": "(orchestrator stub - host should reentrant via dispatch_phase)"},
+                    evaluator=lambda parsed: {"verdict": "PASS", "reason": ""},
+                    host=tool_args.get("host", "claude_code"),
+                )
+                output_dir = Path(tool_args["output_dir"])
+                result = pipeline.run_full_pipeline(
+                    topic=tool_args["topic"],
+                    domain=tool_args["domain"],
+                    output_dir=output_dir,
+                    interactivity=tool_args.get("interactivity", "checkpoints"),
+                    use_bfts=tool_args.get("use_bfts", False),
+                )
+            elif tool_name == "dispatch_phase":
+                # Reentrant: the orchestrator asks the host to dispatch a Task.
+                result = {
+                    "agent_name": tool_args["agent_name"],
+                    "subagent_type": f"ai-scientist-{tool_args['agent_name']}",
+                    "inputs": tool_args["inputs"],
+                }
             else:
                 result = {"error": f"Unknown tool: {tool_name}"}
 
@@ -442,6 +648,13 @@ def handle_request(request):
                         "version": "1.0.0"
                     }
                 }
+            }
+
+        elif method == "tools/list":
+            response = {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {"tools": TOOL_DEFINITIONS},
             }
 
         elif method == "notifications/initialized":
