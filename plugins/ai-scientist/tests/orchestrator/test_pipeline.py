@@ -45,3 +45,12 @@ def test_phase_1_dedups_papers(tmp_path):
     pipeline.phase_0_init(topic="t", domain="statistical", output_dir=tmp_path)
     papers = pipeline.phase_1_literature(idea={"Title": "ridge"}, sources=["openalex"])
     assert len(papers) == 1
+
+
+def test_phase_3_codegen_writes_files(tmp_path):
+    fake_dispatcher = MagicMock(return_value={"raw": '```python\nprint("ok")\n```'})
+    pipeline = Pipeline(dispatcher=fake_dispatcher, evaluator=MagicMock(), host="claude_code")
+    pipeline.phase_0_init(topic="t", domain="statistical", output_dir=tmp_path)
+    result = pipeline.phase_3_codegen(hypothesis={"hypothesis": "h"}, max_rounds=1)
+    assert (tmp_path / "experiment.py").is_file()
+    assert (tmp_path / "requirements.txt").is_file()

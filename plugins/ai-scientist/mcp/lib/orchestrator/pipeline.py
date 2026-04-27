@@ -16,8 +16,8 @@ from datetime import datetime, timezone
 import uuid
 
 from .reflection import ReflectionLoop, EvaluatorVerdict
-from .schemas import IDEATION_SCHEMA, validate_against
-from .extraction import extract_json
+from .schemas import IDEATION_SCHEMA, HYPOTHESIS_SCHEMA, validate_against
+from .extraction import extract_json, extract_python, ExtractionError
 from .checkpoints import CheckpointManager
 from .tokens import TokenTracker
 from .convergence import SemanticConvergence
@@ -177,6 +177,56 @@ class Pipeline:
             if title_norm: seen_title.add(title_norm)
             out.append(p)
         return out
+
+    # --- Phase 2: Hypothesis --------------------------------------------
+    def phase_2_hypothesis(self, *, idea: dict, papers: list) -> dict:
+        loop = ReflectionLoop(
+            dispatcher=self.dispatcher,
+            evaluator=lambda p: self._wrap_evaluator(p),
+            schema=HYPOTHESIS_SCHEMA,
+            extractor=lambda r: extract_json(r.get("raw", "")),
+        )
+        inputs = {
+            "topic": self.state.topic, "domain": self.state.domain,
+            "idea_json": json.dumps(idea),
+            "paper_list_compact": json.dumps([{"title": p.get("title"), "year": p.get("year")} for p in papers[:10]]),
+        }
+        hypothesis = loop.run(agent_name="hypothesizer", inputs=inputs, max_rounds=3)
+        (self.state.output_dir / "hypothesis.md").write_text(
+            hypothesis.get("hypothesis", "") + "\n\n" + hypothesis.get("math_models", ""),
+            encoding="utf-8",
+        )
+        if self.checkpoints: self.checkpoints.save("phase_2", hypothesis)
+        return hypothesis
+
+    # --- Phase 3: Code generation ---------------------------------------
+    def phase_3_codegen(self, *, hypothesis: dict, max_rounds: int = 3) -> dict:
+        history = []
+        for round_n in range(max_rounds):
+            inputs = {"hypothesis_md": hypothesis.get("hypothesis", ""),
+                      "config_json": json.dumps(self.state.config),
+                      "prior_attempts": history}
+            response = self.dispatcher(agent_name="code-generator", inputs=inputs)
+            raw = response.get("raw", "") if isinstance(response, dict) else ""
+            try:
+                code = extract_python(raw)
+                requirements = self._extract_requirements(raw)
+            except ExtractionError as e:
+                history.append({"round": round_n, "error": str(e)})
+                continue
+            (self.state.output_dir / "experiment.py").write_text(code, encoding="utf-8")
+            (self.state.output_dir / "requirements.txt").write_text(requirements, encoding="utf-8")
+            if self.checkpoints: self.checkpoints.save("phase_3", {"code": code, "requirements": requirements})
+            return {"code": code, "requirements": requirements}
+        raise RuntimeError(f"phase_3_codegen: no parseable code after {max_rounds} rounds")
+
+    @staticmethod
+    def _extract_requirements(text: str) -> str:
+        import re
+        m = re.search(r"```\s*(?:requirements\.?txt)?\s*\n([\s\S]+?)\n```", text)
+        if m and ("==" in m.group(1) or ">=" in m.group(1) or m.group(1).strip().startswith(("numpy", "scipy", "torch"))):
+            return m.group(1).strip()
+        return "numpy>=1.26\nscikit-learn>=1.3\nmatplotlib>=3.7\n"
 
     def _wrap_evaluator(self, parsed: dict) -> EvaluatorVerdict:
         try:
