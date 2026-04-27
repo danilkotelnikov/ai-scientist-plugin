@@ -358,6 +358,54 @@ class Pipeline:
         if self.checkpoints: self.checkpoints.save("phase_7", review_data)
         return review_data
 
+    # --- Phase 8: Compile -----------------------------------------------
+    def phase_8_compile(self) -> Optional[Path]:
+        cwd = str(self.state.output_dir)
+        for cmd in [
+            ["pdflatex", "-interaction=nonstopmode", "manuscript.tex"],
+            ["bibtex", "manuscript"],
+            ["pdflatex", "-interaction=nonstopmode", "manuscript.tex"],
+            ["pdflatex", "-interaction=nonstopmode", "manuscript.tex"],
+        ]:
+            try:
+                subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=60)
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                return None
+        pdf = self.state.output_dir / "manuscript.pdf"
+        return pdf if pdf.is_file() else None
+
+    # --- Phase 8.25: Word export ----------------------------------------
+    def phase_8_25_word(self) -> Optional[Path]:
+        try:
+            subprocess.run(
+                ["pandoc", "manuscript.tex", "-o", "manuscript.docx"],
+                cwd=str(self.state.output_dir), capture_output=True, text=True, timeout=60,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return None
+        docx = self.state.output_dir / "manuscript.docx"
+        return docx if docx.is_file() else None
+
+    # --- Phase 8.5: VLM review ------------------------------------------
+    def phase_8_5_vlm(self) -> dict:
+        pdf = self.state.output_dir / "manuscript.pdf"
+        if not pdf.is_file():
+            return {"skipped": "no manuscript.pdf"}
+        figs = sorted((self.state.output_dir / "figures").glob("*.png"))
+        response = self.dispatcher(
+            agent_name="vlm-reviewer",
+            inputs={"route": "md_agent", "rendered_pages": [str(f) for f in figs]},
+        )
+        try:
+            result = extract_json(response.get("raw", ""))
+        except Exception:
+            result = {"error": "vlm response parse failed"}
+        (self.state.output_dir / "visual_review.json").write_text(
+            json.dumps(result, indent=2), encoding="utf-8",
+        )
+        if self.checkpoints: self.checkpoints.save("phase_8_5", result)
+        return result
+
     def _wrap_evaluator(self, parsed: dict) -> EvaluatorVerdict:
         try:
             v = self.evaluator(parsed)
