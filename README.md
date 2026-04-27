@@ -28,12 +28,12 @@ Then run the install script (handles MemPalace pip install, clones the two clone
 
 ```powershell
 # Windows
-& "$env:USERPROFILE\.claude\plugins\cache\ai-scientist-plugin\ai-scientist\1.0.0\plugins\ai-scientist\scripts\install.ps1"
+& "$env:USERPROFILE\.claude\plugins\cache\ai-scientist-plugin\ai-scientist\2.0.0\plugins\ai-scientist\scripts\install.ps1"
 ```
 
 ```bash
 # Linux / macOS
-bash ~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/1.0.0/plugins/ai-scientist/scripts/install.sh
+bash ~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.0.0/plugins/ai-scientist/scripts/install.sh
 ```
 
 After install, the plugin appears in **Customize** with toggles for each agent's model and the per-phase enable flags.
@@ -149,6 +149,7 @@ Every agent declares its model in three frontmatter blocks (`model:` for Claude 
 | 8.5 VLM figure review | vlm-reviewer | `mcp/lib/sakana/perform_vlm_review.py` |
 | 9 Knowledge indexing | (skill — direct MCP) | — |
 | 10 Meta-analysis | meta-analyst | — |
+| 11 Slide generation | slide-presenter | — |
 | F Fixer (on any failure) | fixer | — |
 
 ## 9 pre-configured MCP servers
@@ -307,7 +308,7 @@ plugins/ai-scientist/
 ├── hooks/                     # mempalace-recall.sh, mempalace-save.sh, hooks.json
 ├── settings/                  # default-settings.json + settings.schema.json
 ├── scripts/                   # install.ps1, install.sh, migrate-from-skill.ps1, rollback.ps1, verify.ps1
-├── tests/                     # 129 passing tests (static + routing + per-host frontmatter)
+├── tests/                     # 245 passing tests (static + routing + 100 orchestrator unit tests + per-host frontmatter)
 ├── codex-config.toml.example  # copy-paste TOML for ~/.codex/config.toml
 ├── gemini-extension.json      # Gemini CLI extension manifest
 └── .claude-plugin/            # Claude Code plugin manifest + marketplace

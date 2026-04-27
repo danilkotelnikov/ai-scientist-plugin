@@ -68,9 +68,9 @@ Add to `~/.codex/config.toml`:
 multi_agent = true
 ```
 
-This unlocks `spawn_agent`, `wait`, and `close_agent` — required for the orchestrator to dispatch the 12 phase agents in parallel.
+This unlocks `spawn_agent`, `wait`, and `close_agent` — required for the orchestrator to dispatch the 16 dedicated subagents in parallel.
 
-## 5. Register the bundled MCP servers (8 total)
+## 5. Register the bundled MCP servers (9 total)
 
 Append to `~/.codex/config.toml`. The full block is at `<plugin>/plugins/ai-scientist/codex-config.toml.example` — copy-paste ready. Servers registered:
 

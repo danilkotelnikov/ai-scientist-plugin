@@ -267,10 +267,10 @@ and JackKuo666/bioRxiv-MCP-Server to ~/.ai-scientist/external/,
 probes uvx/npx, runs AI-Scientist core MCP --selftest):
 
   Windows:
-    powershell -File "$env:USERPROFILE\.claude\plugins\cache\ai-scientist-plugin\ai-scientist\1.0.0\plugins\ai-scientist\scripts\install.ps1"
+    powershell -File "$env:USERPROFILE\.claude\plugins\cache\ai-scientist-plugin\ai-scientist\2.0.0\plugins\ai-scientist\scripts\install.ps1"
 
   Linux/macOS:
-    bash ~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/1.0.0/plugins/ai-scientist/scripts/install.sh
+    bash ~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.0.0/plugins/ai-scientist/scripts/install.sh
 
 Walk the per-MCP configuration checklist
 (docs/AGENT_INSTALL_PROMPTS.md "Per-MCP configuration checklist"):
@@ -339,7 +339,7 @@ When user requests "install ai-scientist", follow the "Gemini install prompt" se
 
 If the user asks to install or set up ai-scientist, follow the
 "Claude Code install prompt" section in
-~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/1.0.0/docs/AGENT_INSTALL_PROMPTS.md
+~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.0.0/docs/AGENT_INSTALL_PROMPTS.md
 (after the plugin is installed; otherwise fetch from the repo URL).
 ```
 

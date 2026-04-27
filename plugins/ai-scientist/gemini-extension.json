@@ -1,7 +1,7 @@
 {
   "name": "ai-scientist",
-  "version": "1.0.0",
-  "description": "Cross-host agentic research pipeline. 14 dedicated subagents with per-host model pinning (Gemini 3.1 Pro Preview for heavy roles + Gemini 3 Flash Preview for light), BFTS tree-search experiments, VLM figure review, per-project MemPalace memory, and 9 pre-configured MCP servers. Bundles canonical Sakana Python alongside lightweight host-native agents.",
+  "version": "2.0.0",
+  "description": "Cross-host agentic research pipeline. 16 dedicated subagents with per-host model pinning (Gemini 3.1 Pro Preview for heavy roles + Gemini 3 Flash Preview for light), BFTS tree-search experiments, VLM figure review, slide generation, per-project MemPalace memory, and 9 pre-configured MCP servers. v2.0.0: Python orchestrator (mcp/lib/orchestrator/) drives all phases; SKILL.md is a thin intent router. Bundles canonical Sakana Python alongside lightweight host-native agents.",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
     "ai-scientist": {
