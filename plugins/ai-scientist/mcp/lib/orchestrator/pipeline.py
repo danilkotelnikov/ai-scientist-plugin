@@ -18,7 +18,7 @@ import uuid
 
 from .reflection import ReflectionLoop, EvaluatorVerdict
 from .schemas import IDEATION_SCHEMA, HYPOTHESIS_SCHEMA, validate_against
-from .extraction import extract_json, extract_python, ExtractionError
+from .extraction import extract_json, extract_python, extract_latex, ExtractionError
 from .checkpoints import CheckpointManager
 from .tokens import TokenTracker
 from .convergence import SemanticConvergence
@@ -251,6 +251,67 @@ class Pipeline:
         parsed = extract_json(response.get("raw", "")) if isinstance(response, dict) else {}
         if self.checkpoints: self.checkpoints.save("phase_4b", parsed)
         return parsed
+
+    # --- Phase 5.5: Plotting --------------------------------------------
+    def phase_5_5_plotting(self, *, max_rounds: int = 2) -> dict:
+        history = []
+        for round_n in range(max_rounds):
+            inputs = {"output_dir": str(self.state.output_dir),
+                      "data_summary": self._summarize_data(), "prior_attempts": history}
+            response = self.dispatcher(agent_name="plotter", inputs=inputs)
+            raw = response.get("raw", "") if isinstance(response, dict) else ""
+            agg_path = self.state.output_dir / "auto_plot_aggregator.py"
+            try:
+                code = extract_python(raw)
+                agg_path.write_text(code, encoding="utf-8")
+                result = subprocess.run(
+                    ["python", str(agg_path)], cwd=str(self.state.output_dir),
+                    capture_output=True, text=True, timeout=120,
+                )
+                if result.returncode == 0:
+                    break
+                history.append({"round": round_n, "stderr": result.stderr[:1000]})
+            except Exception as e:
+                history.append({"round": round_n, "error": str(e)})
+        figs = list((self.state.output_dir / "figures").glob("*.png"))[:12]
+        if self.checkpoints: self.checkpoints.save("phase_5_5", {"figures": [str(f) for f in figs]})
+        return {"figures": [str(f) for f in figs]}
+
+    # --- Phase 5: Manuscript --------------------------------------------
+    def phase_5_manuscript(self, *, papers: list, hypothesis: dict, results: dict, max_rounds: int = 3) -> str:
+        history = []
+        tex = ""
+        manuscript_path = self.state.output_dir / "manuscript.tex"
+        for round_n in range(max_rounds):
+            inputs = {"paper_list_compact": json.dumps(papers[:30]),
+                      "hypothesis_summary": hypothesis.get("hypothesis", "")[:400],
+                      "experiment_summary": results.get("stdout_summary", "")[:500],
+                      "prior_attempts": history}
+            response = self.dispatcher(agent_name="manuscript-writer", inputs=inputs)
+            raw = response.get("raw", "") if isinstance(response, dict) else ""
+            try:
+                tex = extract_latex(raw)
+            except Exception as e:
+                history.append({"round": round_n, "error": str(e)})
+                continue
+            manuscript_path.write_text(tex, encoding="utf-8")
+            try:
+                compile_result = subprocess.run(
+                    ["pdflatex", "-interaction=nonstopmode", "manuscript.tex"],
+                    cwd=str(self.state.output_dir), capture_output=True, text=True, timeout=60,
+                )
+                if compile_result.returncode == 0:
+                    break
+                history.append({"round": round_n, "compile_error": compile_result.stdout[-2000:]})
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                # pdflatex not installed or timed out; accept the .tex anyway
+                break
+        if self.checkpoints: self.checkpoints.save("phase_5", {"manuscript_path": str(manuscript_path)})
+        return tex
+
+    @staticmethod
+    def _summarize_data() -> str:
+        return "results.csv (long-format) + .npy data files"
 
     def _wrap_evaluator(self, parsed: dict) -> EvaluatorVerdict:
         try:
