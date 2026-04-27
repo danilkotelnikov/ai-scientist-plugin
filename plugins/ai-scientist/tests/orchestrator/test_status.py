@@ -59,3 +59,27 @@ def test_needs_context_extracts_and_redispatches():
     )
     decision = decide_next_action(response, current_model="sonnet", escalation_count=0)
     assert decision.action == "extract_context_and_redispatch"
+
+
+def test_blocked_task_too_large_redispatches_same_model():
+    response = AgentResponse(
+        status=AgentStatus.BLOCKED,
+        reason="task too large: requires splitting",
+        payload=None,
+    )
+    decision = decide_next_action(response, current_model="sonnet", escalation_count=0)
+    assert decision.action == "redispatch"
+    assert decision.model == "sonnet"
+    assert "sub-tasks" in decision.notes
+
+
+def test_blocked_unrecognized_reason_falls_back_to_ask_user():
+    """Catch-all branch when none of the keyword patterns match."""
+    response = AgentResponse(
+        status=AgentStatus.BLOCKED,
+        reason="something nobody anticipated",
+        payload=None,
+    )
+    decision = decide_next_action(response, current_model="opus", escalation_count=0)
+    assert decision.action == "ask_user_question"
+    assert decision.notes == "something nobody anticipated"

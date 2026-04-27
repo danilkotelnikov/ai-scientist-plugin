@@ -55,9 +55,18 @@ def decide_next_action(
         return NextAction(action="ask_user_question", notes=response.reason)
     reason_lc = response.reason.lower()
     if "needs more context" in reason_lc or "missing" in reason_lc:
-        return NextAction(action="extract_context_and_redispatch", model=current_model)
+        return NextAction(
+            action="extract_context_and_redispatch",
+            model=current_model,
+            notes=response.reason,
+        )
     if "needs harder reasoning" in reason_lc or "non-trivial" in reason_lc:
-        return NextAction(action="redispatch", model=_MODEL_ESCALATION[current_model])
+        # `.get(..., current_model)` keeps non-Anthropic models (Codex, Gemini) usable.
+        # Caller may swap to a stronger Codex/Gemini variant by other means.
+        return NextAction(
+            action="redispatch",
+            model=_MODEL_ESCALATION.get(current_model, current_model),
+        )
     if "task too large" in reason_lc:
         return NextAction(action="redispatch", model=current_model, notes="break into sub-tasks")
     return NextAction(action="ask_user_question", notes=response.reason)

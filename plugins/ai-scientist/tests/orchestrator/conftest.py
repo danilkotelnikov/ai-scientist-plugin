@@ -6,10 +6,12 @@ plain sys.path.insert() is insufficient — the installed MCP SDK has a real
 __init__.py and always wins.  We inject the local package directly into
 sys.modules before any test module is imported.
 """
+# Scoped to tests/orchestrator/ intentionally; tests/ root tests do not
+# currently import mcp.*. If a future test outside this directory needs to
+# import the local mcp/ package, lift this conftest to tests/ root.
 import sys
 import types
 import pathlib
-import os
 
 # Resolve the plugin root from this conftest's own __file__.  Python resolves
 # __file__ correctly even when the path contains non-ASCII (Cyrillic) chars.
