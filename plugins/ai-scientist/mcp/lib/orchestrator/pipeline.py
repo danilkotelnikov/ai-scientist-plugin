@@ -540,3 +540,34 @@ class Pipeline:
             "review": review,
             "output_dir": str(self.state.output_dir),
         }
+
+    def render_research_state_view(self) -> Path:
+        """Render <output_dir>/research-state.yaml from current pipeline state."""
+        try:
+            import yaml
+        except ImportError:
+            # Fallback: write JSON instead
+            path = self.state.output_dir / "research-state.json"
+            view = {
+                "job_id": self.state.job_id,
+                "topic": self.state.topic,
+                "domain": self.state.domain,
+                "status": "running",
+                "ideation": {"candidates_generated": 0, "candidate_names": [], "selected": ""},
+            }
+            path.write_text(json.dumps(view, indent=2), encoding="utf-8")
+            return path
+        view = {
+            "job_id": self.state.job_id,
+            "topic": self.state.topic,
+            "domain": self.state.domain,
+            "status": "running",
+            "ideation": {
+                "candidates_generated": 0,
+                "candidate_names": [],
+                "selected": "",
+            },
+        }
+        path = self.state.output_dir / "research-state.yaml"
+        path.write_text(yaml.safe_dump(view, sort_keys=False), encoding="utf-8")
+        return path
