@@ -22,6 +22,8 @@ from .extraction import extract_json, extract_python, extract_latex, ExtractionE
 from .checkpoints import CheckpointManager
 from .tokens import TokenTracker
 from .convergence import SemanticConvergence
+from .references import validate_citations
+from .ensemble import BiasedReviewers
 
 
 @dataclass
@@ -312,6 +314,49 @@ class Pipeline:
     @staticmethod
     def _summarize_data() -> str:
         return "results.csv (long-format) + .npy data files"
+
+    # --- Phase 6: Citations ---------------------------------------------
+    def phase_6_citations(self) -> dict:
+        tex_path = self.state.output_dir / "manuscript.tex"
+        bib_path = self.state.output_dir / "references.bib"
+        if not tex_path.is_file() or not bib_path.is_file():
+            return {"is_clean": False, "skipped": "missing tex or bib"}
+        tex = tex_path.read_text(encoding="utf-8")
+        report = validate_citations(tex, bib_path, crossref_check=False, llm_judge=None)
+        if not report.is_clean:
+            response = self.dispatcher(
+                agent_name="citator",
+                inputs={"manuscript_tex": tex, "references_bib": bib_path.read_text(encoding="utf-8"),
+                        "dangling": report.dangling, "uncited": report.uncited, "max_rounds": 5},
+            )
+            try:
+                updated = extract_json(response.get("raw", ""))
+                if "references_bib" in updated:
+                    bib_path.write_text(updated["references_bib"], encoding="utf-8")
+            except Exception:
+                pass
+        if self.checkpoints: self.checkpoints.save("phase_6", {"citation_report": {
+            "dangling": report.dangling, "uncited": report.uncited,
+            "hallucinated": report.hallucinated, "is_clean": report.is_clean,
+        }})
+        return {"is_clean": report.is_clean}
+
+    # --- Phase 7: Review ------------------------------------------------
+    def phase_7_review(self, *, manuscript_tex: str) -> dict:
+        br = BiasedReviewers(dispatcher=self.dispatcher, biases=["positive", "negative", "neutral"])
+        aggregate = br.review(manuscript=manuscript_tex, agent_name="reviewer")
+        review_data = {
+            "median_overall": aggregate.median_overall,
+            "score_iqr": aggregate.score_iqr,
+            "consensus_high": aggregate.consensus_high,
+            "has_outliers": aggregate.has_outliers,
+            "individual_reviews": aggregate.individual_reviews,
+        }
+        (self.state.output_dir / "review.json").write_text(
+            json.dumps(review_data, indent=2), encoding="utf-8",
+        )
+        if self.checkpoints: self.checkpoints.save("phase_7", review_data)
+        return review_data
 
     def _wrap_evaluator(self, parsed: dict) -> EvaluatorVerdict:
         try:
