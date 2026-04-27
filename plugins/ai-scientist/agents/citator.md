@@ -74,3 +74,15 @@ Key format: `{LastName}{Year}_{index}` where index avoids collisions with existi
 <output name="rounds_run">3</output>
 <output name="citations_added">[{"key": "...", "title": "...", "where_to_cite": "..."}]</output>
 ```
+
+## Anti-hallucination contract
+
+40% of LLM-generated citations are fabricated. To prevent this:
+
+1. **Never invent a citation.** Only emit `\cite{key}` for keys that
+   either (a) exist in `references.bib` or (b) you've just fetched from
+   Semantic Scholar / arXiv / Crossref via MCP and added.
+2. **Mark unverifiable citations as `\cite{PLACEHOLDER_…}`** so the
+   downstream consistency check can flag them.
+3. **Bidirectional check before exit**: every `\cite{key}` resolves;
+   every `.bib` entry is cited at least once (or drop it).
