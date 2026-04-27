@@ -130,3 +130,63 @@ def test_gate_or_default_calls_callback_when_critical_in_checkpoints_mode():
     )
     assert result == "user_choice"
     callback.assert_called_once()
+
+
+def test_run_full_pipeline_smoke(tmp_path, monkeypatch):
+    """Smoke test — verify the call chain doesn't error.
+    Each phase is stubbed to return a minimal valid response so we don't
+    require real LaTeX/pandoc/python/etc. installations.
+    """
+    fake_dispatcher = MagicMock(return_value={"raw": '{"k":"v"}'})
+    pipeline = Pipeline(dispatcher=fake_dispatcher, evaluator=MagicMock(return_value={"verdict": "PASS", "reason": ""}), host="claude_code")
+
+    # Stub heavy phases to keep this a smoke test
+    monkeypatch.setattr(pipeline, "phase_0_5_ideation",
+        lambda **kw: [{"Name": "a", "Title": "T", "Short_Hypothesis": "h"},
+                       {"Name": "b", "Title": "T2", "Short_Hypothesis": "h2"}])
+    monkeypatch.setattr(pipeline, "phase_1_literature", lambda **kw: [{"title": "P1", "year": 2025}])
+    monkeypatch.setattr(pipeline, "phase_2_hypothesis", lambda **kw: {"hypothesis": "H", "math_models": "M"})
+    monkeypatch.setattr(pipeline, "phase_3_codegen", lambda **kw: {"code": "print(1)", "requirements": ""})
+    monkeypatch.setattr(pipeline, "phase_4_experiment", lambda **kw: {"exit_code": 0, "stdout_summary": "ok"})
+    monkeypatch.setattr(pipeline, "phase_5_5_plotting", lambda **kw: {"figures": []})
+    monkeypatch.setattr(pipeline, "phase_5_manuscript", lambda **kw: "TEX")
+    monkeypatch.setattr(pipeline, "phase_6_citations", lambda **kw: {"is_clean": True})
+    monkeypatch.setattr(pipeline, "phase_7_review", lambda **kw: {"median_overall": 6, "score_iqr": 1, "consensus_high": True, "has_outliers": False, "individual_reviews": []})
+    monkeypatch.setattr(pipeline, "phase_8_compile", lambda **kw: None)
+    monkeypatch.setattr(pipeline, "phase_8_25_word", lambda **kw: None)
+    monkeypatch.setattr(pipeline, "phase_8_5_vlm", lambda **kw: {})
+    monkeypatch.setattr(pipeline, "phase_9_index", lambda **kw: None)
+    monkeypatch.setattr(pipeline, "phase_10_meta", lambda **kw: {})
+    monkeypatch.setattr(pipeline, "phase_11_slides", lambda **kw: None)
+
+    summary = pipeline.run_full_pipeline(
+        topic="t", domain="statistical", output_dir=tmp_path,
+        interactivity="none", use_bfts=False,
+    )
+    assert "job_id" in summary
+    assert summary["output_dir"] == str(tmp_path)
+
+
+def test_gate_or_default_returns_default_when_interactivity_none():
+    pipeline = Pipeline(dispatcher=MagicMock(), evaluator=MagicMock(), host="claude_code")
+    result = pipeline._gate_or_default(
+        gate_id=1, default="A", question="?", options=["A", "B"],
+        callback=None, interactivity="none", critical=True,
+    )
+    assert result == "A"
+
+
+def test_gate_or_default_calls_callback_when_critical_and_full():
+    pipeline = Pipeline(dispatcher=MagicMock(), evaluator=MagicMock(), host="claude_code")
+    callback_called = {"n": 0}
+
+    def cb(gate_req):
+        callback_called["n"] += 1
+        return "B"
+
+    result = pipeline._gate_or_default(
+        gate_id=1, default="A", question="?", options=["A", "B"],
+        callback=cb, interactivity="full", critical=True,
+    )
+    assert result == "B"
+    assert callback_called["n"] == 1
