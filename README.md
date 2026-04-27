@@ -2,7 +2,7 @@
 
 End-to-end agentic research pipeline that runs across **Claude Code, Codex CLI, and Gemini CLI** with the same behavior on each. Literature search → ideation → hypothesis → experiment (single-shot or BFTS tree-search) → manuscript → peer review → visual figure validation.
 
-**14 dedicated subagents**, each pinned per-host to a specific model with extended thinking. Auto-routes natural-language requests to the smallest agent subset.
+**16 dedicated subagents**, each pinned per-host to a specific model with extended thinking. Auto-routes natural-language requests to the smallest agent subset.
 
 ## Highlights
 
@@ -100,7 +100,7 @@ look at advanced NN algorithms and write code, then analyze # → Lit + CodeGen 
 compare RWKV vs Mamba experimentally                        # → CodeGen + Experiment + Plotter + Stats
 ```
 
-## The 15 agents
+## The 16 agents
 
 ### Per-host model pinning
 
@@ -123,6 +123,7 @@ Every agent declares its model in three frontmatter blocks (`model:` for Claude 
 | 13 | **vlm-reviewer** | opus, 48k | gpt-5.5 high, 65k out | gemini-3.1-pro-preview, level=high, 32k out, 2M ctx |
 | 14 | **tree-search-runner** | opus, **64k** | gpt-5.5 xhigh, 65k out | gemini-3.1-pro-preview, level=high, 32k out, 2M ctx |
 | 15 | **codex-cross-validator** *(CC-exclusive)* | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
+| 16 | **slide-presenter** | opus, 48k | gpt-5.5 xhigh, 65k out | gemini-3.1-pro-preview, level=high, 32k out, 2M ctx |
 
 > Agent 15 is a meta-agent that pipes outputs to Codex via the bridge CLI. It only runs on Claude Code (skipped on Codex/Gemini hosts).
 
@@ -277,9 +278,11 @@ Full schema at [`plugins/ai-scientist/settings/settings.schema.json`](plugins/ai
 
 ## Architecture
 
+> **v2.0.0**: The pipeline is now driven by a Python orchestrator at [`plugins/ai-scientist/mcp/lib/orchestrator/`](plugins/ai-scientist/mcp/lib/orchestrator/) (17 modules). Full design: [`docs/specs/2026-04-27-orchestrator-rewrite-design.md`](docs/specs/2026-04-27-orchestrator-rewrite-design.md). Implementation plan: [`docs/plans/2026-04-27-orchestrator-rewrite-implementation.md`](docs/plans/2026-04-27-orchestrator-rewrite-implementation.md).
+
 ```
 plugins/ai-scientist/
-├── agents/                    # 14 dedicated subagents (each with claude / codex / gemini frontmatter blocks)
+├── agents/                    # 16 dedicated subagents (each with claude / codex / gemini frontmatter blocks)
 ├── skills/ai-scientist/
 │   ├── SKILL.md               # orchestrator (intent routing + dispatch + universal MemPalace contract)
 │   ├── domain-templates.md    # 6 domain configs (ml, optimization, statistical, mathematical, comp_bio, sw_eng)
@@ -328,7 +331,7 @@ Plus at the repo root:
 
 ## Tests
 
-129 tests pass (static frontmatter checks for all 14 agents across all 3 hosts, routing fixtures, schema validation, MCP self-test).
+Tests pass (static frontmatter checks for all 16 agents across all 3 hosts, routing fixtures, schema validation, MCP self-test, Tier 3 smoke runner).
 
 ```bash
 cd plugins/ai-scientist && python -m pytest tests/
@@ -337,8 +340,10 @@ python plugins/ai-scientist/mcp/server.py --selftest
 
 ## Spec & plan
 
-- Design: [`docs/specs/2026-04-25-ai-scientist-plugin-design.md`](docs/specs/2026-04-25-ai-scientist-plugin-design.md)
-- Implementation plan: [`docs/plans/2026-04-25-ai-scientist-plugin-implementation.md`](docs/plans/2026-04-25-ai-scientist-plugin-implementation.md)
+- Original design: [`docs/specs/2026-04-25-ai-scientist-plugin-design.md`](docs/specs/2026-04-25-ai-scientist-plugin-design.md)
+- Original plan: [`docs/plans/2026-04-25-ai-scientist-plugin-implementation.md`](docs/plans/2026-04-25-ai-scientist-plugin-implementation.md)
+- **v2.0.0 orchestrator rewrite design**: [`docs/specs/2026-04-27-orchestrator-rewrite-design.md`](docs/specs/2026-04-27-orchestrator-rewrite-design.md)
+- **v2.0.0 orchestrator rewrite plan**: [`docs/plans/2026-04-27-orchestrator-rewrite-implementation.md`](docs/plans/2026-04-27-orchestrator-rewrite-implementation.md)
 
 ## Credits
 
