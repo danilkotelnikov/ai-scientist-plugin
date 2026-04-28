@@ -55,7 +55,61 @@
         "checkpoint_after_each_phase": true,
         "max_figures": 12,
         "citation_validation": "bidirectional_with_crossref",
-        "citation_anti_hallucination_llm_judge": true
+        "citation_anti_hallucination_llm_judge": true,
+        "article_type": {
+          "default": "auto",
+          "auto_detect_keywords": {
+            "review": ["review", "survey", "state of the art", "recent advances",
+                       "literature review", "meta-analysis"],
+            "benchmark": ["benchmark", "leaderboard", "evaluation suite",
+                          "compare", "vs"]
+          },
+          "strict_phase_gate": true
+        },
+        "cross_validation": {
+          "doi_gate": "strict",
+          "title_fuzzy_threshold": 0.85,
+          "title_fuzzy_human_review_min": 0.80,
+          "enrichment_cascade": ["openalex", "semantic_scholar", "consensus",
+                                 "annas_oa_only", "pubmed_biomedical_only"],
+          "claim_support_check": "top_cited_only",
+          "claim_support_min_citations": 3
+        },
+        "plotter": {
+          "cycles": 3,
+          "default_palette": "okabe_ito",
+          "journal_style": "auto",
+          "vlm_critic_model": "gpt-4o",
+          "latex_native_when_available": true,
+          "max_figures": 12
+        },
+        "writing_style": {
+          "anti_llm_lint": true,
+          "intra_phase_ideation_redispatch": true,
+          "max_clarification_redispatches": 3,
+          "tone": "critical_skeptical",
+          "limitations_section_required": true,
+          "search_strategy_section_required_for_review": true,
+          "em_dash_warn_per_1000_words": 2.0,
+          "em_dash_block_per_1000_words": 5.0
+        },
+        "codex_native_dispatch": {
+          "enabled": true,
+          "max_threads": 6,
+          "slot_leak_guard": true,
+          "preferred_model": "gpt-5.5",
+          "preferred_effort": "xhigh"
+        },
+        "tool_preflight": {
+          "enabled": true,
+          "block_phase_5_on_missing_compile_chain": true,
+          "block_phase_8_5_on_missing_renderer": false
+        },
+        "resource_budget": {
+          "stop_external_at_pct_of_budget": 0.80,
+          "max_external_requests_per_run": 1000,
+          "long_call_warn_seconds": 300
+        }
       },
       "auto_fix_max_rounds": 3,
       "fixer_max_rounds_per_phase": 3,

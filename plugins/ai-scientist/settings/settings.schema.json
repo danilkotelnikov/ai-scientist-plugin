@@ -85,7 +85,81 @@
                 "checkpoint_after_each_phase": { "type": "boolean" },
                 "max_figures": { "type": "integer", "minimum": 1, "maximum": 50 },
                 "citation_validation": { "enum": ["off", "unidirectional", "bidirectional_with_crossref"] },
-                "citation_anti_hallucination_llm_judge": { "type": "boolean" }
+                "citation_anti_hallucination_llm_judge": { "type": "boolean" },
+                "article_type": {
+                  "type": "object",
+                  "properties": {
+                    "default": {"type": "string",
+                                "enum": ["auto", "review", "experimental", "benchmark"]},
+                    "auto_detect_keywords": {"type": "object"},
+                    "strict_phase_gate": {"type": "boolean"}
+                  }
+                },
+                "cross_validation": {
+                  "type": "object",
+                  "properties": {
+                    "doi_gate": {"type": "string", "enum": ["strict", "soft"]},
+                    "title_fuzzy_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+                    "title_fuzzy_human_review_min": {"type": "number",
+                                                      "minimum": 0, "maximum": 1},
+                    "enrichment_cascade": {"type": "array",
+                                            "items": {"type": "string"}},
+                    "claim_support_check": {"type": "string",
+                                            "enum": ["off", "top_cited_only", "all"]},
+                    "claim_support_min_citations": {"type": "integer", "minimum": 1}
+                  }
+                },
+                "plotter": {
+                  "type": "object",
+                  "properties": {
+                    "cycles": {"type": "integer", "minimum": 1, "maximum": 5},
+                    "default_palette": {"type": "string"},
+                    "journal_style": {"type": "string"},
+                    "vlm_critic_model": {"type": "string"},
+                    "latex_native_when_available": {"type": "boolean"},
+                    "max_figures": {"type": "integer", "minimum": 1}
+                  }
+                },
+                "writing_style": {
+                  "type": "object",
+                  "properties": {
+                    "anti_llm_lint": {"type": "boolean"},
+                    "intra_phase_ideation_redispatch": {"type": "boolean"},
+                    "max_clarification_redispatches": {"type": "integer", "minimum": 0},
+                    "tone": {"type": "string"},
+                    "limitations_section_required": {"type": "boolean"},
+                    "search_strategy_section_required_for_review": {"type": "boolean"},
+                    "em_dash_warn_per_1000_words": {"type": "number"},
+                    "em_dash_block_per_1000_words": {"type": "number"}
+                  }
+                },
+                "codex_native_dispatch": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {"type": "boolean"},
+                    "max_threads": {"type": "integer", "minimum": 1},
+                    "slot_leak_guard": {"type": "boolean"},
+                    "preferred_model": {"type": "string"},
+                    "preferred_effort": {"type": "string"}
+                  }
+                },
+                "tool_preflight": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {"type": "boolean"},
+                    "block_phase_5_on_missing_compile_chain": {"type": "boolean"},
+                    "block_phase_8_5_on_missing_renderer": {"type": "boolean"}
+                  }
+                },
+                "resource_budget": {
+                  "type": "object",
+                  "properties": {
+                    "stop_external_at_pct_of_budget": {"type": "number",
+                                                         "minimum": 0, "maximum": 1},
+                    "max_external_requests_per_run": {"type": "integer", "minimum": 1},
+                    "long_call_warn_seconds": {"type": "integer", "minimum": 1}
+                  }
+                }
               }
             },
             "auto_fix_max_rounds": { "type": "integer", "minimum": 0, "maximum": 10 },
