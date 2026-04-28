@@ -24,6 +24,10 @@ from .tokens import TokenTracker
 from .convergence import SemanticConvergence
 from .references import validate_citations
 from .ensemble import BiasedReviewers
+from .article_type import classify_article_type, phase_order_for, NON_APPLICABLE_PHASES
+from .cross_validator import validate_corpus
+from .anti_llm_lint import lint_text, audit_claims
+from .reviewer_ledger import build_reviewer_dispatch
 
 
 @dataclass
@@ -540,6 +544,56 @@ class Pipeline:
             "review": review,
             "output_dir": str(self.state.output_dir),
         }
+
+    # --- Phase -1: Intent classification -----------------------------------
+    def phase_minus_1_intent(self, *, explicit: str = "auto") -> dict:
+        """Phase -1: classify article_type from topic + explicit flag."""
+        article_type = classify_article_type(topic=self.state.topic,
+                                             explicit=explicit)
+        phase_order = phase_order_for(article_type)
+        non_app = NON_APPLICABLE_PHASES[article_type]
+        self.state.config["article_type"] = article_type
+        self.state.config["phase_order"] = phase_order
+        self.state.config["non_applicable_phases"] = non_app
+        (self.state.output_dir / "config.json").write_text(
+            json.dumps(self.state.config, indent=2), encoding="utf-8")
+        return {"article_type": article_type, "phase_order": phase_order,
+                "non_applicable_phases": non_app}
+
+    # --- Phase 1.5: Metadata validation ------------------------------------
+    def phase_1_5_metadata_validation(self, *, crossref_email: str,
+                                      openalex_email: Optional[str] = None,
+                                      semantic_scholar_key: Optional[str] = None,
+                                      annas_enabled: bool = False,
+                                      consensus_enabled: bool = False,
+                                      pubmed_enabled: bool = False) -> dict:
+        """Phase 1.5: strict DOI-gate + cascade enrichment.
+
+        Reads paper_list.json, runs validate_corpus, writes references_validation.json.
+        Drops papers that fail Stage 1 from a filtered paper_list.validated.json.
+        """
+        plist = json.loads(
+            (self.state.output_dir / "paper_list.json").read_text())
+        report = validate_corpus(
+            plist,
+            crossref_email=crossref_email,
+            openalex_email=openalex_email or crossref_email,
+            semantic_scholar_key=semantic_scholar_key,
+            annas_enabled=annas_enabled,
+            consensus_enabled=consensus_enabled,
+            pubmed_enabled=pubmed_enabled,
+        )
+        (self.state.output_dir / "references_validation.json").write_text(
+            json.dumps(report, indent=2), encoding="utf-8")
+        # Filter paper_list to validated-only
+        validated_keys = {v["key"] for v in report["validated"]}
+        filtered = [p for p in plist
+                    if p.get("key", p.get("doi", "?")) in validated_keys]
+        (self.state.output_dir / "paper_list.validated.json").write_text(
+            json.dumps(filtered, indent=2), encoding="utf-8")
+        if self.checkpoints:
+            self.checkpoints.save("phase_1_5", report)
+        return report
 
     def render_research_state_view(self) -> Path:
         """Render <output_dir>/research-state.yaml from current pipeline state."""
