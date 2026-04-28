@@ -3,17 +3,42 @@
 #
 # On Linux/macOS, replace ${env:USERPROFILE} with ${env:HOME}.
 #
-# IMPORTANT: this file deliberately does NOT contain a [features] block.
-# Most Codex installs already have one, and TOML forbids two sections with
-# the same name. Before relying on this plugin, confirm your existing
-# [features] table in ~/.codex/config.toml contains:
+# ============================================================================
+# IMPORTANT -- READ BEFORE APPENDING
+# ============================================================================
 #
-#     multi_agent = true
+# 1. [features] block:
+#    This file deliberately does NOT contain a [features] block. Most Codex
+#    installs already have one, and TOML forbids two sections with the same
+#    name. Confirm your existing [features] table in ~/.codex/config.toml
+#    contains:
 #
-# (it usually already does on recent Codex versions). If you have no
-# [features] section at all, add one anywhere in the file with that single
-# key. The ai-scientist orchestrator needs spawn_agent + wait + close_agent,
-# which `multi_agent = true` unlocks.
+#        multi_agent = true
+#
+#    (it usually already does on recent Codex versions). If you have no
+#    [features] section at all, add one anywhere in the file with that
+#    single key. multi_agent unlocks spawn_agent / wait / close_agent,
+#    which the orchestrator needs.
+#
+# 2. [mcp_servers.X] duplicates:
+#    This file registers 9 MCP servers under [mcp_servers.ai-scientist],
+#    [mcp_servers.mempalace], [mcp_servers.openalex],
+#    [mcp_servers.semanticscholar], [mcp_servers.arxiv],
+#    [mcp_servers.biorxiv], [mcp_servers.pubmed], [mcp_servers.annas-mcp],
+#    [mcp_servers.fetcher].
+#
+#    If your existing config.toml ALREADY registers any of these names
+#    (e.g. from a previous ai-scientist install or another plugin that
+#    happens to use the same name), `codex restart` will fail with
+#    "duplicate key" because TOML forbids the same table twice.
+#
+#    Before appending, grep your config:
+#
+#        grep -E '^\[mcp_servers\.(ai-scientist|mempalace|openalex|semanticscholar|arxiv|biorxiv|pubmed|annas-mcp|fetcher)\]' ~/.codex/config.toml
+#
+#    For each match, EITHER delete the existing block (if it's stale) OR
+#    skip the matching block from this file when copying. Do not paste a
+#    second copy on top.
 
 # ============================================================================
 # AI-Scientist core MCP -- knowledge store, codebase analyzer, meta-analysis

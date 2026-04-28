@@ -74,7 +74,17 @@ This unlocks `spawn_agent`, `wait`, and `close_agent` — required for the orche
 
 Append to `~/.codex/config.toml`. The full block is at `<plugin>/plugins/ai-scientist/codex-config.toml.example` -- copy-paste ready.
 
-> **Pre-flight on `[features]`:** the example file deliberately omits its own `[features]` table because TOML forbids two sections with the same name and most installs already have one. Step 4 above told you to ensure `multi_agent = true` lives under your existing `[features]` block. If you're appending to a config that lacks `[features]` entirely, add it yourself (anywhere in the file) with that single key. **If you previously appended an older copy of this example that included `[features]`, deduplicate it before running `codex restart`** -- otherwise Codex will refuse to load the file with a `duplicate key` error. Servers registered:
+> **Pre-flight on `[features]`:** the example file deliberately omits its own `[features]` table because TOML forbids two sections with the same name and most installs already have one. Step 4 above told you to ensure `multi_agent = true` lives under your existing `[features]` block. If you're appending to a config that lacks `[features]` entirely, add it yourself (anywhere in the file) with that single key. **If you previously appended an older copy of this example that included `[features]`, deduplicate it before running `codex restart`** -- otherwise Codex will refuse to load the file with a `duplicate key` error.
+>
+> **Pre-flight on `[mcp_servers.*]`:** the example registers 9 MCP servers (`ai-scientist`, `mempalace`, `openalex`, `semanticscholar`, `arxiv`, `biorxiv`, `pubmed`, `annas-mcp`, `fetcher`). If your existing `~/.codex/config.toml` already registers any of those exact names (from a previous install of this plugin or any other MCP using the same name), the append will produce TOML duplicate-table errors. Grep first:
+>
+> ```bash
+> grep -E '^\[mcp_servers\.(ai-scientist|mempalace|openalex|semanticscholar|arxiv|biorxiv|pubmed|annas-mcp|fetcher)\]' ~/.codex/config.toml
+> ```
+>
+> For every match, either delete the older block from your config OR skip the matching block from the example when copying. **Do not paste both.** If you already pasted both and `codex restart` is failing with `duplicate key`, find the most recent appended block in your config (usually after a comment header reading `Append the contents of this file...`) and delete from that header to EOF, then re-merge selectively.
+>
+> **Encoding gotcha on Windows:** if you edit the file with `Set-Content -Encoding UTF8` (PowerShell 5.1) it adds a UTF-8 BOM that Codex's TOML parser rejects with "Invalid statement at line 1 column 1". Either use `Add-Content` (which preserves the existing encoding) or use `Out-File` with `-Encoding utf8NoBOM` (PowerShell 6+) / `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))` (5.1). Servers registered:
 
 | Server | Purpose |
 |---|---|
