@@ -130,3 +130,169 @@ def lint_text(text: str) -> dict:
             })
 
     return {"hits": hits, "paragraph_count": len(paragraphs)}
+
+
+EM_DASH_THRESHOLD_WARN = 2.0  # per 1000 words
+EM_DASH_THRESHOLD_BLOCK = 5.0
+
+
+def _word_count(text: str) -> int:
+    return len(re.findall(r"\b[\w'-]+\b", text))
+
+
+def _em_dash_metrics(text: str) -> Optional[dict]:
+    n = text.count("—") + text.count("–")
+    wc = _word_count(text) or 1
+    rate = (n / wc) * 1000.0
+    if rate < EM_DASH_THRESHOLD_WARN:
+        return None
+    return {
+        "tier": 4, "metric": "em_dash_density",
+        "value": round(rate, 2), "occurrences": n,
+        "rationale": (f"{rate:.1f} em-dashes per 1000 words "
+                      f"(human ≤ 2; GPT-4.1 ≈ 10.6, Claude Opus ≈ 9.1)."),
+    }
+
+
+_EVAL_ADJ = re.compile(
+    r"\b(robust|scalable|efficient|comprehensive|seamless|innovative|"
+    r"holistic|elegant|powerful|flexible|extensible)\b",
+    re.IGNORECASE,
+)
+_TRICOLON = re.compile(
+    r"\b(\w+),\s*(\w+),?\s+and\s+(\w+)\b",
+)
+
+
+def _tricolon_metric(text: str) -> list:
+    out = []
+    for m in _TRICOLON.finditer(text):
+        words = [m.group(1), m.group(2), m.group(3)]
+        if all(_EVAL_ADJ.match(w) for w in words):
+            out.append({
+                "tier": 4, "metric": "evaluative_tricolon",
+                "match": m.group(0),
+                "start": m.start(), "end": m.end(),
+                "rationale": "Three evaluative adjectives in a row simulate "
+                             "comprehensiveness; each must have a metric.",
+            })
+    return out
+
+
+_PARTICIPIAL = re.compile(
+    r",\s*(highlighting|underscoring|demonstrating|emphasizing|"
+    r"showcasing|illustrating)\s+[^.]+\.",
+    re.IGNORECASE,
+)
+
+
+def _participial_metric(text: str) -> list:
+    out = []
+    for m in _PARTICIPIAL.finditer(text):
+        out.append({
+            "tier": 4, "metric": "participial_commentary",
+            "match": m.group(0)[:80],
+            "start": m.start(), "end": m.end(),
+            "rationale": "Participial commentary attaches editorial weight without analysis.",
+        })
+    return out
+
+
+def _augment_with_style(out: dict, text: str) -> dict:
+    em = _em_dash_metrics(text)
+    if em:
+        out["hits"].append(em)
+    out["hits"].extend(_tricolon_metric(text))
+    out["hits"].extend(_participial_metric(text))
+    return out
+
+
+# Override the original lint_text to chain style metrics.
+_original_lint_text = lint_text
+
+
+def lint_text(text: str) -> dict:  # type: ignore[no-redef]
+    out = _original_lint_text(text)
+    return _augment_with_style(out, text)
+
+
+# --- Claim audit (intra-phase ideation re-dispatch triggers) ---
+
+NUMBER_RX = (
+    r"(p\s*[<=>]\s*0\.\d+|p\s*=\s*\d+|n\s*=\s*\d+|"
+    r"\d+(\.\d+)?\s*(%|ms|s|GB|MB|x|\xd7|seconds|minutes|hours)|"
+    r"\b\d+\.\d+|"
+    r"(95|99)%\s*CI|F\(\d+|t\(\d+|χ²)"
+)
+
+
+def _has_quantification(window: str) -> bool:
+    return bool(re.search(NUMBER_RX, window, re.IGNORECASE))
+
+
+def _has_prior_work_survey(window: str) -> bool:
+    return bool(re.search(
+        r"(see Appendix|search protocol|to our knowledge|prior work)",
+        window, re.IGNORECASE))
+
+
+def _has_complexity(window: str) -> bool:
+    return bool(re.search(r"\bO\([^)]+\)|complexity|sub-?(linear|quadratic)",
+                          window, re.IGNORECASE))
+
+
+def _has_robustness_eval(window: str) -> bool:
+    return bool(re.search(
+        r"(adversarial|distribution[-\s]shift|noise model|SNR|perturbation)",
+        window, re.IGNORECASE))
+
+
+def _has_held_out_eval(window: str) -> bool:
+    return bool(re.search(
+        r"(held[-\s]out|out[-\s]of[-\s]distribution|OOD|test set|cross[-\s]validation)",
+        window, re.IGNORECASE))
+
+
+def _has_test_statistic(window: str) -> bool:
+    return bool(re.search(
+        r"(p\s*[<=]|F\(\d+|t\(\d+|χ²|chi[-\s]square|ANOVA|Mann[-\s]Whitney)",
+        window, re.IGNORECASE))
+
+
+CLAIM_PATTERNS = [
+    ("outperforms", r"\b(outperforms?|better than|improves?|superior)\b",
+     lambda w: not _has_quantification(w)),
+    ("novel", r"\b(novel|first to|unprecedented)\b",
+     lambda w: not _has_prior_work_survey(w)),
+    ("scalable", r"\bscalable\b",
+     lambda w: not _has_complexity(w)),
+    ("efficient", r"\b(efficient|computationally efficient)\b",
+     lambda w: not _has_quantification(w)),
+    ("robust", r"\brobust to\b",
+     lambda w: not _has_robustness_eval(w)),
+    ("generalizes", r"\bgeneralizes?\b",
+     lambda w: not _has_held_out_eval(w)),
+    ("significant", r"\bsignificant(ly)?\b",
+     lambda w: not _has_test_statistic(w)),
+]
+
+WINDOW_CHARS = 200
+
+
+def audit_claims(text: str) -> dict:
+    """Scans for unquantified-claim patterns and emits clarification requests."""
+    requests = []
+    for label, pattern, gate in CLAIM_PATTERNS:
+        rx = re.compile(pattern, re.IGNORECASE)
+        for m in rx.finditer(text):
+            window = text[max(0, m.start() - WINDOW_CHARS):
+                          m.end() + WINDOW_CHARS]
+            if gate(window):
+                requests.append({
+                    "pattern": label,
+                    "match": m.group(0),
+                    "start": m.start(),
+                    "end": m.end(),
+                    "window_excerpt": window[:300],
+                })
+    return {"clarification_requests": requests}
