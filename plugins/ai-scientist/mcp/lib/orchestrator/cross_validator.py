@@ -11,7 +11,7 @@ from typing import Optional
 
 import httpx
 
-DOI_REGEX = re.compile(r"^10\.\d{4,9}/[-._;()/:A-Za-z0-9]+$")
+DOI_REGEX = re.compile(r"^10\.\d{1,9}/[-._;()/:A-Za-z0-9]+$")
 TITLE_FUZZY_THRESHOLD = 0.85
 
 
@@ -260,3 +260,50 @@ def stage3_claim_support(paper: dict, *, claim: str,
         return {"checked": True, "method": "abstract_snippet",
                 "match_score": int(score), "flag": score < 35}
     return {"checked": False, "reason": "no_summary_available"}
+
+
+def validate_corpus(papers: list, *, crossref_email: str,
+                    openalex_email: str, semantic_scholar_key: Optional[str],
+                    annas_enabled: bool, consensus_enabled: bool,
+                    pubmed_enabled: bool, claim_support_for: Optional[list] = None,
+                    title_threshold: float = TITLE_FUZZY_THRESHOLD) -> dict:
+    """Run all 3 stages over a corpus. Returns references_validation.json shape.
+
+    `claim_support_for`: optional list of (paper_key, claim_text) for Stage 3.
+    """
+    dropped, validated = [], []
+    for paper in papers:
+        key = paper.get("key", paper.get("doi", "?"))
+        s1 = stage1_doi_gate(paper,
+                             harvest_title=paper.get("title", ""),
+                             crossref_email=crossref_email)
+        if not s1["passed"]:
+            dropped.append({"key": key, "reason": s1["reason"]})
+            continue
+        enriched = stage2_enrich(
+            {**paper, "doi": s1["doi"]},
+            openalex_email=openalex_email,
+            semantic_scholar_key=semantic_scholar_key,
+            consensus_enabled=consensus_enabled,
+            annas_enabled=annas_enabled,
+            pubmed_enabled=pubmed_enabled,
+        )
+        v_record = {
+            "key": key,
+            "doi": s1["doi"],
+            "title_score": round(s1["title_score"], 3),
+            "year_match": "pass" if enriched.get("year") else "unknown",
+            "first_author_match": "pass" if enriched.get("authors") else "unknown",
+            "venue_match": "pass" if enriched.get("venue") else "warning",
+            "source_checked": ["crossref"] + enriched.get("enriched_from", []),
+            "status": "validated" if not enriched.get("missing_after_enrich")
+                      else "unverified",
+        }
+        validated.append(v_record)
+    report = {
+        "total_papers": len(papers),
+        "doi_gate_passed": len(validated),
+        "dropped": dropped,
+        "validated": validated,
+    }
+    return report
