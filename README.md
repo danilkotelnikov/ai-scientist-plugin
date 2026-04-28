@@ -28,12 +28,12 @@ Then run the install script (handles MemPalace pip install, clones the two clone
 
 ```powershell
 # Windows
-& "$env:USERPROFILE\.claude\plugins\cache\ai-scientist-plugin\ai-scientist\2.0.0\scripts\install.ps1"
+& "$env:USERPROFILE\.claude\plugins\cache\ai-scientist-plugin\ai-scientist\2.1.0\scripts\install.ps1"
 ```
 
 ```bash
 # Linux / macOS
-bash ~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.0.0/scripts/install.sh
+bash ~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.1.0/scripts/install.sh
 ```
 
 > **Note on the install path.** The marketplace caches only the contents of the plugin's `source` directory (`./plugins/ai-scientist/` per `.claude-plugin/marketplace.json`), so `scripts/install.ps1` lives directly under the version directory — *not* under a nested `plugins/ai-scientist/` subdirectory.
@@ -95,6 +95,8 @@ export ANNAS_BASE_URL="annas-archive.gl"                  # optional (full-text)
 export ANNAS_DOWNLOAD_PATH="$HOME/Downloads/AA"           # optional (full-text)
 export ANNAS_SECRET_KEY="your-key"                        # optional (full-text)
 ```
+
+> **OpenAlex API key required since 2026-02-13.** OpenAlex made API keys mandatory: keyless requests get only 100 credits/day (testing only). Singleton DOI lookups still cost 0 credits with a free key. Set `OPENALEX_EMAIL` to your contact email -- it is also used as the polite-pool identifier for Crossref. Get a free key at https://openalex.org/api-keys.
 
 ## Usage
 
@@ -300,7 +302,25 @@ Full schema at [`plugins/ai-scientist/settings/settings.schema.json`](plugins/ai
 
 ## Architecture
 
-> **v2.0.0**: The pipeline is now driven by a Python orchestrator at [`plugins/ai-scientist/mcp/lib/orchestrator/`](plugins/ai-scientist/mcp/lib/orchestrator/) (17 modules). Full design: [`docs/specs/2026-04-27-orchestrator-rewrite-design.md`](docs/specs/2026-04-27-orchestrator-rewrite-design.md). Implementation plan: [`docs/plans/2026-04-27-orchestrator-rewrite-implementation.md`](docs/plans/2026-04-27-orchestrator-rewrite-implementation.md).
+> v2.1.0 ships strict literature cross-validation, an iterative 3-cycle plotter, anti-LLMish manuscript discipline, and Codex-primary `spawn_agent` dispatch.
+>
+> Spec: `docs/specs/2026-04-28-v2.1-strict-validation-codex-native.md`. Plan: `docs/plans/2026-04-28-v2.1-implementation.md` (parts 1–4). Closes 12 acceptance-criteria artifacts from the [pipeline-review document](./docs/2026-04-28%20ai-scientist-codex-pipeline-review.md).
+
+The v2.0.0 Python orchestrator at `plugins/ai-scientist/mcp/lib/orchestrator/` (17 modules) gains:
+
+| New module (v2.1) | Responsibility |
+|---|---|
+| `cross_validator.py` | DOI gate (Crossref/DataCite) + cascade enrich (OpenAlex -> Semantic Scholar -> Consensus -> Anna's OA-only -> PubMed biomedical-only) + claim-support spot-check |
+| `source_accounting.py` | Per-source provenance ledger (`source_usage.json`) |
+| `article_type.py` | Auto-detect `review` / `experimental` / `benchmark` + per-type phase orders |
+| `preflight.py` | Toolchain + Codex runtime + memory-tool capability probes |
+| `resource_ledger.py` | External-request / spawn / long-call accounting + 80% budget gate |
+| `plotter_loop.py` | 3-cycle iterative plotter (inspect -> VLM critique -> polish), scripting + LaTeX-native paths |
+| `anti_llm_lint.py` | Tier 1-4 anti-LLMish blacklist + claim audit triggering ideation re-dispatch |
+| `dispatch/codex_native.py` | `spawn_agent` waves with slot-leak guard (GitHub issue #18335) |
+| `reviewer_ledger.py` | `reviewer_dispatch.json` builder (native_subagents \| inline_fallback) |
+
+Cross-host parity preserved: Codex-primary `spawn_agent` waves, Claude Code `Task` tool, Gemini inline reasoning -- same .md prompts and same artifact set.
 
 ```
 plugins/ai-scientist/
