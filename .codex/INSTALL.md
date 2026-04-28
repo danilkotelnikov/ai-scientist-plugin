@@ -61,14 +61,20 @@ cmd /c mklink /J "$env:USERPROFILE\.agents\agents\ai-scientist" "$env:USERPROFIL
 
 ## 4. Enable multi-agent dispatch
 
-Add to `~/.codex/config.toml`:
+The v2.1 reviewer phase uses Codex `spawn_agent` waves. Add (or confirm) in `~/.codex/config.toml`:
 
 ```toml
 [features]
 multi_agent = true
+
+[agents]
+max_threads = 6
+max_depth = 1
 ```
 
-This unlocks `spawn_agent`, `wait`, and `close_agent` — required for the orchestrator to dispatch the 16 dedicated subagents in parallel.
+`multi_agent = true` unlocks `spawn_agent`, `wait`, `close_agent`, `send_input`, `resume_agent`. `max_threads = 6` is the default cap and is enough for the 3-bias reviewer fan-out plus one buffer slot.
+
+**Critical:** the v2.1 dispatcher always calls `close_agent` after every `spawn_agent` wave to defeat the slot-leak bug ([codex issue #18335](https://github.com/openai/codex/issues/18335)). If you observe spawn slots leaking between turns, file an upstream bug; the plugin already does the right thing on its end.
 
 ## 5. Register the bundled MCP servers (9 total)
 
@@ -115,6 +121,19 @@ Get-Content "$env:USERPROFILE\.codex\ai-scientist-plugin\plugins\ai-scientist\co
 (On Linux/macOS edit the example first to replace `${env:USERPROFILE}` with `${env:HOME}` before appending.)
 
 The example file declares **`[features] multi_agent = true`** and all 9 MCP-server blocks. Open it before appending to skim what gets registered.
+
+## 5b. (recommended) Add the OpenAI Docs MCP
+
+For grounding any Codex-API or subagent-API claim against official documentation rather than memorized state:
+
+```powershell
+codex mcp add openaiDeveloperDocs --url https://developers.openai.com/mcp
+codex mcp list
+```
+
+The plugin's preflight (`preflight.probe_memory_tools`) will detect this server and write `tool_preflight.json` showing whether `search_openai_docs` / `fetch_openai_doc` are available. The pipeline can then ground its OpenAI-API claims against the live docs.
+
+If you skip this, all preflight reports will record `official_docs_mcp.available = false` and the workflow falls back to fetching official OpenAI web pages directly.
 
 ## 6. Run the install script
 
