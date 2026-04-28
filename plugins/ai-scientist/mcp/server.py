@@ -495,6 +495,43 @@ TOOL_DEFINITIONS = [
             "required": ["agent_name", "inputs"],
         },
     },
+    {
+        "name": "validate_corpus",
+        "description": "Run the strict DOI-gated cross-validator over a paper list. Stage 1 = Crossref/DataCite resolve + fuzzy title (≥0.85). Stage 2 = OpenAlex/S2/Anna's-OA-only enrichment cascade. Stage 3 = optional claim-support spot-check for top-cited.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "paper_list_path": {"type": "string"},
+                "crossref_email": {"type": "string"},
+                "openalex_email": {"type": "string"},
+                "semantic_scholar_key": {"type": "string"},
+                "annas_enabled": {"type": "boolean"},
+                "consensus_enabled": {"type": "boolean"},
+                "pubmed_enabled": {"type": "boolean"},
+                "title_threshold": {"type": "number"},
+            },
+            "required": ["paper_list_path", "crossref_email"],
+        },
+    },
+    {
+        "name": "run_plotter_cycle",
+        "description": "Run one cycle of the iterative plotter (1=inspect+draft, 2=VLM critique, 3=polish+export). Modes: scripting (matplotlib) or latex_native (TikZ/pgfplots).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "output_dir": {"type": "string"},
+                "cycle": {"type": "integer", "enum": [1, 2, 3]},
+                "mode": {"type": "string",
+                         "enum": ["scripting", "latex_native"]},
+                "article_type": {"type": "string",
+                                  "enum": ["review", "experimental",
+                                           "benchmark"]},
+                "journal_style": {"type": "string"},
+                "figure_specs": {"type": "array"},
+            },
+            "required": ["output_dir", "cycle"],
+        },
+    },
 ]
 
 
@@ -623,6 +660,52 @@ def handle_request(request):
                     "subagent_type": f"ai-scientist-{tool_args['agent_name']}",
                     "inputs": tool_args["inputs"],
                 }
+            elif tool_name == "validate_corpus":
+                import sys, pathlib, json
+                _lib = pathlib.Path(__file__).resolve().parent / "lib"
+                if str(_lib) not in sys.path:
+                    sys.path.insert(0, str(_lib))
+                from orchestrator.cross_validator import validate_corpus
+                paper_list = json.loads(
+                    pathlib.Path(tool_args["paper_list_path"]).read_text(
+                        encoding="utf-8"))
+                result = validate_corpus(
+                    paper_list,
+                    crossref_email=tool_args["crossref_email"],
+                    openalex_email=tool_args.get(
+                        "openalex_email", tool_args["crossref_email"]),
+                    semantic_scholar_key=tool_args.get(
+                        "semantic_scholar_key"),
+                    annas_enabled=tool_args.get("annas_enabled", False),
+                    consensus_enabled=tool_args.get(
+                        "consensus_enabled", False),
+                    pubmed_enabled=tool_args.get("pubmed_enabled", False),
+                    title_threshold=tool_args.get("title_threshold", 0.85),
+                )
+            elif tool_name == "run_plotter_cycle":
+                import sys, pathlib
+                _lib = pathlib.Path(__file__).resolve().parent / "lib"
+                if str(_lib) not in sys.path:
+                    sys.path.insert(0, str(_lib))
+                from orchestrator.plotter_loop import PlotterLoop, PlotSpec
+                outdir = pathlib.Path(tool_args["output_dir"])
+                loop = PlotterLoop(
+                    output_dir=outdir,
+                    article_type=tool_args.get("article_type", "experimental"),
+                    journal_style=tool_args.get("journal_style", "auto"),
+                )
+                cycle = int(tool_args["cycle"])
+                if cycle == 1:
+                    specs = [PlotSpec(**s)
+                             for s in tool_args.get("figure_specs", [])]
+                    result = loop.cycle1_inspect_and_draft(specs)
+                elif cycle == 3:
+                    result = loop.cycle3_polish_export(
+                        mode=tool_args.get("mode", "scripting"))
+                else:
+                    result = {"error": f"Cycle {cycle} requires a vlm_callable; "
+                              "use cycle1_inspect_and_draft or cycle3_polish_export "
+                              "directly via the run_pipeline orchestrator entry."}
             else:
                 result = {"error": f"Unknown tool: {tool_name}"}
 
