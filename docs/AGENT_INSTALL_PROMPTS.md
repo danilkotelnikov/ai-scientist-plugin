@@ -267,14 +267,30 @@ and JackKuo666/bioRxiv-MCP-Server to ~/.ai-scientist/external/,
 probes uvx/npx, runs AI-Scientist core MCP --selftest):
 
   Windows:
-    powershell -File "$env:USERPROFILE\.claude\plugins\cache\ai-scientist-plugin\ai-scientist\2.0.0\scripts\install.ps1"
+    powershell -File "$env:USERPROFILE\.claude\plugins\cache\ai-scientist-plugin\ai-scientist\2.1.0\scripts\install.ps1"
 
   Linux/macOS:
-    bash ~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.0.0/scripts/install.sh
+    bash ~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.1.0/scripts/install.sh
 
   (Note: the marketplace caches only the contents of the plugin's `source`
   dir from marketplace.json, so scripts/ lives directly under the version
   directory — no nested plugins/ai-scientist/ segment.)
+
+After install, verify the v2.1 strict-validation modules import cleanly:
+
+```bash
+PYPATH="$HOME/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.1.0/mcp/lib" python -c "
+import sys
+sys.path.insert(0, '$PYPATH')
+from orchestrator.cross_validator import validate_corpus, stage1_doi_gate
+from orchestrator.anti_llm_lint import lint_text, audit_claims
+from orchestrator.plotter_loop import PlotterLoop
+from orchestrator.dispatch.codex_native import CodexNativeDispatcher
+print('v2.1 modules OK')
+"
+```
+
+Expected: `v2.1 modules OK`. If any import fails, run the install script again or file an issue.
 
 Walk the per-MCP configuration checklist
 (docs/AGENT_INSTALL_PROMPTS.md "Per-MCP configuration checklist"):
@@ -343,7 +359,7 @@ When user requests "install ai-scientist", follow the "Gemini install prompt" se
 
 If the user asks to install or set up ai-scientist, follow the
 "Claude Code install prompt" section in
-~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.0.0/docs/AGENT_INSTALL_PROMPTS.md
+~/.claude/plugins/cache/ai-scientist-plugin/ai-scientist/2.1.0/docs/AGENT_INSTALL_PROMPTS.md
 (or, if the docs dir wasn't packaged into the cache, fetch directly from
 the repo URL above)
 (after the plugin is installed; otherwise fetch from the repo URL).
