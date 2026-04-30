@@ -9,9 +9,15 @@
 chromadb>=0.4.22
 sentence-transformers>=2.5.0
 
-# v2.1.0 strict validation + cross-host dispatch
+# v2.1.0 strict validation + cross-host dispatch.
+#
+# bibtexparser: v2 is still a beta line on PyPI (2.0.0b9 latest as of
+# 2026-04-28); pip's stable-only resolver under default settings will refuse
+# `>=2.0`. We pin to v1.4 stable, which works for the regex-based reference
+# I/O the v2.1 cross_validator needs. Bump to >=2.0.0b9 + --pre when v2
+# stabilizes.
 habanero>=2.3.0
 pyalex>=0.17
-bibtexparser>=2.0
+bibtexparser>=1.4,<3.0
 rapidfuzz>=3.0
 httpx>=0.27
