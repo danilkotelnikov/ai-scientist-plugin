@@ -352,3 +352,171 @@ def test_stats_writes_class_balance(tmp_path):
     assert obj["train"]["class_balance"] == {1: 1, 0: 1}
     assert obj["val"]["n"] == 1
     assert obj["test"]["n"] == 1
+
+
+# -- Orchestrator (prepare_corpus.py) -------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_prepare_one_pair_end_to_end(tmp_path, monkeypatch):
+    """End-to-end smoke: each stage mocked so we can verify checkpoint flow."""
+    pytest.importorskip("datasketch")
+    import importlib
+
+    # Import the orchestrator from the scripts/ folder.
+    if "prepare_corpus" in sys.modules:
+        del sys.modules["prepare_corpus"]
+    prepare_corpus = importlib.import_module("prepare_corpus")
+
+    fake_papers = [
+        {
+            "doi": "10.1/a",
+            "id": "p1",
+            "language": "en",
+            "license": "cc-by",
+            "full_text_url": "u1",
+        },
+        {
+            "doi": "10.1/b",
+            "id": "p2",
+            "language": "en",
+            "license": "cc-by",
+            "full_text_url": "u2",
+        },
+    ]
+
+    async def _fake_harvest(*, discipline, language, target_count, out_path):
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            "\n".join(__import__("json").dumps(p) for p in fake_papers),
+            encoding="utf-8",
+        )
+        return list(fake_papers)
+
+    async def _fake_download_many(urls_and_dests, concurrency=8):
+        for url, dest in urls_and_dests:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(b"%PDF-1.4 fake")
+        return [d for _, d in urls_and_dests]
+
+    def _fake_extract(src, dest):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        text = (
+            "Methods. " + " ".join(["w"] * 60) + ".\n\n"
+            + "Results. " + " ".join(["x"] * 60) + ".\n\n"
+            + "Discussion. " + " ".join(["y"] * 60) + ".\n\n"
+        )
+        dest.write_text(text, encoding="utf-8")
+        return dest
+
+    monkeypatch.setattr(prepare_corpus.acquisition, "harvest", _fake_harvest)
+    monkeypatch.setattr(prepare_corpus.download, "download_many", _fake_download_many)
+    monkeypatch.setattr(prepare_corpus.extraction, "extract", _fake_extract)
+    monkeypatch.setattr(
+        prepare_corpus.lang_verify,
+        "filter_papers",
+        lambda papers, *, target_lang, text_root: list(papers),
+    )
+
+    async def _fake_negs(positives, *, concurrency=4):
+        return [
+            {
+                "paper_id": p["paper_id"] + "_neg",
+                "para_idx": p.get("para_idx", -1),
+                "text": "AI-style rewrite of " + p["text"][:30],
+                "n_words": 50,
+                "section": p.get("section", "Body"),
+                "label": 0,
+                "label_source": "adversarial_generator",
+                "source_para_id": p["paper_id"],
+            }
+            for p in positives
+        ]
+
+    monkeypatch.setattr(
+        prepare_corpus.negative_generator,
+        "generate_negatives",
+        _fake_negs,
+    )
+
+    corpus_root = tmp_path / "corpus"
+    await prepare_corpus.prepare_one_pair(
+        discipline="chemistry",
+        language="en",
+        target_count=2,
+        corpus_root=corpus_root,
+    )
+
+    pair_dir = corpus_root / "chemistry" / "en"
+    # All 10 stage markers written.
+    for stage in (
+        "acquisition",
+        "download",
+        "extraction",
+        "lang_verify",
+        "segmentation",
+        "dedup",
+        "labeling",
+        "negatives",
+        "splits",
+        "stats",
+    ):
+        assert (pair_dir / ".checkpoints" / f"{stage}.done").exists(), stage
+    assert (pair_dir / "train.jsonl").exists()
+    assert (pair_dir / "val.jsonl").exists()
+    assert (pair_dir / "test.jsonl").exists()
+    assert (pair_dir / "corpus_stats.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_prepare_one_pair_skips_done_stages(tmp_path, monkeypatch):
+    """Stages marked done must not be re-run."""
+    pytest.importorskip("datasketch")
+    import importlib
+
+    if "prepare_corpus" in sys.modules:
+        del sys.modules["prepare_corpus"]
+    prepare_corpus = importlib.import_module("prepare_corpus")
+
+    corpus_root = tmp_path / "corpus"
+    pair_dir = corpus_root / "chemistry" / "en"
+    pair_dir.mkdir(parents=True)
+
+    # Pre-mark every stage done so the orchestrator should skip them all.
+    (pair_dir / ".checkpoints").mkdir(parents=True, exist_ok=True)
+    for stage in (
+        "acquisition",
+        "download",
+        "extraction",
+        "lang_verify",
+        "segmentation",
+        "dedup",
+        "labeling",
+        "negatives",
+        "splits",
+        "stats",
+    ):
+        (pair_dir / ".checkpoints" / f"{stage}.done").write_text("{}", encoding="utf-8")
+
+    called: dict[str, bool] = {}
+
+    async def _flag(name):
+        async def _g(**kw):
+            called[name] = True
+            return []
+
+        return _g
+
+    monkeypatch.setattr(
+        prepare_corpus.acquisition,
+        "harvest",
+        await _flag("acquisition"),
+    )
+
+    await prepare_corpus.prepare_one_pair(
+        discipline="chemistry",
+        language="en",
+        target_count=2,
+        corpus_root=corpus_root,
+    )
+    assert called == {}
