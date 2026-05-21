@@ -44,3 +44,20 @@ networkx>=3.0
 # v3.0.0 Block 4 — Net-new functionality (§5).
 # numerical_audit and reproducibility_audit read CSV artifacts via pandas.
 pandas>=2.0
+
+# v3.0.0 Block 5 — Hybrid register discriminator (§5.3) + dataset prep +
+# CPU/GPU training. All heavy ML deps are lazy-imported by their respective
+# modules; tests use ``pytest.importorskip`` so the unit suite still runs
+# without them. Training/inference users install via the bootstrap scripts.
+torch>=2.4
+transformers>=4.45
+safetensors>=0.4.5
+accelerate>=0.34
+datasketch>=1.6
+spacy>=3.7
+pdfminer.six>=20240706
+lxml>=5.0
+beautifulsoup4>=4.12
+psutil>=5.9
+# fasttext on Windows ships pre-built via the lite wrapper.
+fasttext-langdetect>=1.0.5
