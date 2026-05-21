@@ -44,5 +44,9 @@ class Settings(BaseSettings):
     # ----- runtime -----
     job_workspace_root: str = "./.vedix-jobs"
 
+    # ----- Block 11: federated MemPalace / real-time collab -----
+    # Public Yjs WebSocket base URL (returned by GET /v1/api/palaces/{id}).
+    yjs_ws_base: str = "wss://collab.vedix.ai"
+
 
 settings = Settings()

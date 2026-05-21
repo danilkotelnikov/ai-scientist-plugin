@@ -61,6 +61,12 @@ def create_app() -> FastAPI:
         app.include_router(webhooks_router.router)
     except Exception:  # pragma: no cover - partial-checkout fallback
         pass
+    try:
+        from .routers import palace as palace_router
+
+        app.include_router(palace_router.router)
+    except Exception:  # pragma: no cover - partial-checkout fallback
+        pass
     return app
 
 
