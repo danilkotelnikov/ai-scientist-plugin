@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vedix
+      POSTGRES_PASSWORD: vedix
+      POSTGRES_DB: vedix
+    ports: ["5432:5432"]
+    volumes: ["pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vedix -d vedix"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      VEDIX_ENV: prod
+      VEDIX_POSTGRES_URL: postgresql+asyncpg://vedix:vedix@postgres/vedix
+      VEDIX_REDIS_URL: redis://redis:6379/0
+      VEDIX_JWT_SECRET: ${VEDIX_JWT_SECRET:-change-me-in-prod}
+      VEDIX_YUKASSA_SECRET: ${VEDIX_YUKASSA_SECRET:-}
+      VEDIX_STRIPE_SECRET: ${VEDIX_STRIPE_SECRET:-}
+      VEDIX_STRIPE_WEBHOOK_SECRET: ${VEDIX_STRIPE_WEBHOOK_SECRET:-}
+      VEDIX_CLOUDPAYMENTS_SECRET: ${VEDIX_CLOUDPAYMENTS_SECRET:-}
+      VEDIX_BOOSTY_SECRET: ${VEDIX_BOOSTY_SECRET:-}
+    ports: ["8000:8000"]
+    volumes:
+      - jobs:/var/lib/vedix/jobs
+
+  worker:
+    build: .
+    command: arq app.workers.job_worker.WorkerSettings
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      VEDIX_ENV: prod
+      VEDIX_POSTGRES_URL: postgresql+asyncpg://vedix:vedix@postgres/vedix
+      VEDIX_REDIS_URL: redis://redis:6379/0
+      VEDIX_JWT_SECRET: ${VEDIX_JWT_SECRET:-change-me-in-prod}
+      VEDIX_JOB_WORKSPACE_ROOT: /var/lib/vedix/jobs
+    volumes:
+      - jobs:/var/lib/vedix/jobs
+
+  migrate:
+    build: .
+    command: alembic upgrade head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      VEDIX_ENV: prod
+      VEDIX_POSTGRES_URL: postgresql+asyncpg://vedix:vedix@postgres/vedix
+    restart: "no"
+
+volumes:
+  pg:
+  jobs:
