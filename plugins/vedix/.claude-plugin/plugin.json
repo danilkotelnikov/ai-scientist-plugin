@@ -1,0 +1,33 @@
+{
+  "name": "vedix",
+  "description": "Vedix — research workbench that turns a topic into a venue-ready manuscript via cross-host CLI orchestration",
+  "version": "3.0.0",
+  "author": {
+    "name": "scienceboylovesyou",
+    "email": "scienceboylovesyou@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "ai-scientist",
+    "subagents",
+    "scientific-writing",
+    "literature-review",
+    "experiment-automation",
+    "peer-review",
+    "bfts",
+    "tree-search",
+    "vlm",
+    "mempalace",
+    "cross-host",
+    "mcp",
+    "orchestrator",
+    "python",
+    "stage-gate",
+    "ensemble-review"
+  ],
+  "commands": {
+    "vedix": { "description": "Run the full Vedix research pipeline" },
+    "research": { "alias": "vedix" }
+  }
+}
