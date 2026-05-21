@@ -23,7 +23,7 @@
 
 ---
 
-## Sub-plans (12 blocks)
+## Sub-plans (13 blocks)
 
 Each sub-plan is independently executable and produces working, testable software on its own. Execute in dependency order or parallel as the DAG below allows.
 
@@ -41,7 +41,8 @@ Each sub-plan is independently executable and produces working, testable softwar
 | B10 | IDE plugins — VS Code + JetBrains (§5.8) | [`2026-05-20-block10-ide-plugins.md`](2026-05-20-block10-ide-plugins.md) | 3 |
 | B11 | Federated MemPalace + collab + preprint (§§5.9–5.11) | [`2026-05-20-block11-federated-collab-preprint.md`](2026-05-20-block11-federated-collab-preprint.md) | 4 |
 | B12 | Polish + launch | [`2026-05-20-block12-polish-and-launch.md`](2026-05-20-block12-polish-and-launch.md) | 2 |
-| **Total** | | | **41 weeks** serial |
+| **B13** | **Source-Grounded Claim Architecture (SGCA)** — KG-backed constrained pre-generation + claim verifier + adversarial reviewer track | [`2026-05-20-block13-source-grounded-claim-architecture.md`](2026-05-20-block13-source-grounded-claim-architecture.md) | **4** |
+| **Total** | | | **45 weeks** serial |
 
 ## Dependency DAG
 
@@ -101,6 +102,7 @@ For each sub-plan:
 - [ ] B9: Web UI
 - [ ] B10: IDE plugins
 - [ ] B11: Federated + collab + preprint
+- [ ] B13: SGCA (Source-Grounded Claim Architecture) — depends on B2 (BYOK routing); can parallelize with B3/B4/B5/B6/B7; must complete before B12
 - [ ] B12: Polish + launch
 
 ## Open questions (block until resolved)
