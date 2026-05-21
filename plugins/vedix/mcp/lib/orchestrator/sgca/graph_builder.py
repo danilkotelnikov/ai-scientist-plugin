@@ -106,3 +106,67 @@ class GraphBuilder:
                     f"verbatim quote byte_range mismatch for {claim.id}: "
                     f"reported [{s},{e}] but actual offset is [{idx},{idx + len(claim.verbatim_quote)}]"
                 )
+
+    # ----- Cross-paper edge inference (second pass) -----
+
+    async def infer_cross_paper_edges(self, *, top_k: int = 20, candidate_threshold: float = 0.55,
+                                      edge_confidence_threshold: float = 0.7) -> int:
+        """SGCA §4.4: top-k candidate selection by claim-paraphrase embedding cosine,
+        then LLM classification per pair. Writes contradicts/extends/supports edges
+        for confidence > edge_confidence_threshold."""
+        from .schema import Edge
+        paper_ids = self.store.list_paper_ids()
+        all_claims: list[tuple[str, str]] = []  # (claim_id, paraphrase)
+        for pid in paper_ids:
+            paper = self.store.read_paper(pid)
+            if paper is None:
+                continue
+            for c in paper.nodes.claims:
+                all_claims.append((c.id, c.paraphrase))
+
+        n_written = 0
+        for i, (cid_a, p_a) in enumerate(all_claims):
+            scored: list[tuple[str, float]] = []
+            for j, (cid_b, p_b) in enumerate(all_claims):
+                if i == j:
+                    continue
+                if cid_a.split(".")[0] == cid_b.split(".")[0]:
+                    continue  # skip same-paper pairs
+                cos = await self._pair_label_cosine(p_a, p_b)
+                if cos >= candidate_threshold:
+                    scored.append((cid_b, cos))
+            scored.sort(key=lambda x: x[1], reverse=True)
+            for cid_b, _ in scored[:top_k]:
+                verdict = await self._classify_pair(cid_a, cid_b)
+                if verdict["edge_kind"] in ("contradicts", "extends", "supports") and \
+                   verdict["confidence"] >= edge_confidence_threshold:
+                    self.store.write_edge(Edge(**{
+                        "from": cid_a, "to": cid_b,
+                        "kind": verdict["edge_kind"],
+                        "confidence": verdict["confidence"],
+                    }))
+                    n_written += 1
+        return n_written
+
+    async def _pair_label_cosine(self, a: str, b: str) -> float:
+        from .embeddings import label_cosine
+        return await label_cosine(a, b)
+
+    async def _classify_pair(self, claim_a_id: str, claim_b_id: str) -> dict:
+        paper_a = self.store.read_paper(claim_a_id.split(".")[0])
+        paper_b = self.store.read_paper(claim_b_id.split(".")[0])
+        ca = next(c for c in paper_a.nodes.claims if c.id == claim_a_id)
+        cb = next(c for c in paper_b.nodes.claims if c.id == claim_b_id)
+        prompt = (
+            f"Decide the relationship between these two claims from different papers.\n\n"
+            f"Claim A ({claim_a_id}): {ca.paraphrase}\n  Quote: \"{ca.verbatim_quote}\"\n\n"
+            f"Claim B ({claim_b_id}): {cb.paraphrase}\n  Quote: \"{cb.verbatim_quote}\"\n\n"
+            f"Reply ONLY with JSON: "
+            f'{{"edge_kind": "contradicts" | "extends" | "supports" | "none", "confidence": <0.0-1.0>}}'
+        )
+        resp = await dispatch_agent(agent_type="paper-extractor", prompt=prompt, max_tokens=128)
+        import json as _j
+        try:
+            return _j.loads(resp.content)
+        except Exception:
+            return {"edge_kind": "none", "confidence": 0.0}

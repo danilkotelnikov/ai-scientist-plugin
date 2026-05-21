@@ -108,3 +108,62 @@ async def test_schema_violation_retried_once_then_failed(tmp_path, monkeypatch):
                new=AsyncMock(return_value=bad_response)):
         report = await builder.run(paper_list=paper_list)
     assert report["failed"] == 1
+
+
+# ------------- Cross-paper edge inference (Task 7) ------------------
+
+from plugins.vedix.mcp.lib.orchestrator.sgca.schema import (
+    KGFragment, KGNodes, Claim, Author, RawPointer, Provenance,
+)
+
+
+def _claim(paper_id, claim_id, paraphrase):
+    return Claim(id=claim_id, type="empirical", paraphrase=paraphrase,
+                 verbatim_quote="q", quote_byte_range=[0, 1],
+                 page=1, section="Results", confidence=0.9, hedge=False,
+                 provenance=Provenance(extractor_model="x", extractor_ts=0))
+
+
+@pytest.mark.asyncio
+async def test_infer_cross_paper_edges_writes_contradicts(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    store = KGStore(tier=Tier.JOB, scope_id="xpe")
+    for pid, paraphrase in [("a", "X increases with Y"), ("b", "X decreases with Y")]:
+        store.write_paper(KGFragment(
+            paper_id=pid, doi=f"10/{pid}", title=pid, year=2024,
+            authors=[Author(id=f"author:{pid}", name=pid)], language="en", license="CC-BY",
+            raw_pointer=RawPointer(text=f"raw/{pid}.txt", byte_len=10),
+            nodes=KGNodes(claims=[_claim(pid, f"{pid}.c1", paraphrase)]),
+            edges=[],
+        ))
+    builder = GraphBuilder(store=store, concurrency=1)
+    # Mock: high cosine between a.c1 and b.c1; LLM returns "contradicts"
+    fake_classify = AsyncMock(return_value={"edge_kind": "contradicts", "confidence": 0.88})
+    with patch.object(builder, "_pair_label_cosine", new=AsyncMock(return_value=0.92)), \
+         patch.object(builder, "_classify_pair", new=fake_classify):
+        n = await builder.infer_cross_paper_edges()
+    assert n >= 1
+    edges = store.edges_from("a.c1")
+    assert any(e.to == "b.c1" and e.kind == "contradicts" for e in edges)
+
+
+@pytest.mark.asyncio
+async def test_infer_cross_paper_edges_skips_low_confidence(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    store = KGStore(tier=Tier.JOB, scope_id="xpe_skip")
+    for pid in ("a", "b"):
+        store.write_paper(KGFragment(
+            paper_id=pid, doi=f"10/{pid}", title=pid, year=2024,
+            authors=[Author(id=f"author:{pid}", name=pid)], language="en", license="CC-BY",
+            raw_pointer=RawPointer(text=f"raw/{pid}.txt", byte_len=10),
+            nodes=KGNodes(claims=[_claim(pid, f"{pid}.c1", "unrelated")]),
+            edges=[],
+        ))
+    builder = GraphBuilder(store=store, concurrency=1)
+    fake_classify = AsyncMock(return_value={"edge_kind": "none", "confidence": 0.3})
+    with patch.object(builder, "_pair_label_cosine", new=AsyncMock(return_value=0.3)), \
+         patch.object(builder, "_classify_pair", new=fake_classify):
+        n = await builder.infer_cross_paper_edges()
+    assert n == 0
