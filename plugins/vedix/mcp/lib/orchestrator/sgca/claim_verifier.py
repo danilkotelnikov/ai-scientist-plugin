@@ -103,10 +103,24 @@ class ClaimVerifier:
                     "rationale": "verifier output unparseable"}
 
     def _verify_speculate(self, sentence: SentenceBucket) -> VerifierResult:
-        # Implemented in Task 11
-        return VerifierResult(status="fail-bucket",
-                              rationale="speculate verification not yet implemented",
-                              ran_at_ts=time.time())
+        if not sentence.hedge_language:
+            return VerifierResult(
+                status="fail-bucket",
+                rationale="speculate bucket requires hedge_language (e.g. 'we hypothesize that')",
+                ran_at_ts=time.time(),
+            )
+        if sentence.authorization is None:
+            return VerifierResult(
+                status="pending-user-approval",
+                rationale="speculation not pre-authorized; live AskUserQuestion gate required",
+                ran_at_ts=time.time(),
+            )
+        # Authorization present + hedge present -> pass
+        return VerifierResult(
+            status="pass",
+            rationale=f"speculation authorized via {sentence.authorization.source}",
+            ran_at_ts=time.time(),
+        )
 
     def _find_claim(self, node_id: str):
         if "." not in node_id:
