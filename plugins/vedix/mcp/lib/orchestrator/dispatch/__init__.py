@@ -35,7 +35,7 @@ def get_dispatcher(host: str) -> type:
 
 __all__ = ["ClaudeCodeDispatcher", "CodexDispatcher",
            "CodexNativeDispatcher", "GeminiDispatcher", "get_dispatcher",
-           "dispatch_agent"]
+           "dispatch_agent", "AGENT_CLASS_DEFAULTS"]
 
 
 # --------------------------------------------------------------------------- #
@@ -47,6 +47,43 @@ __all__ = ["ClaudeCodeDispatcher", "CodexDispatcher",
 # v2.1.x callers (codex_bridge.detect_host -> get_dispatcher) keep working.   #
 # --------------------------------------------------------------------------- #
 import json as _json
+
+
+# --------------------------------------------------------------------------- #
+# v3.0.0 Block 13 — Agent-class defaults registry (SGCA).                     #
+#                                                                             #
+# Each entry declares per-class preferred providers, max_tokens, and model    #
+# overrides. ProviderRouter consults this when no per-agent_class chain was   #
+# pre-built (so SGCA agents work without manual `vedix provider add` for     #
+# every class). Existing pre-built chains in BYOK config take precedence.     #
+# --------------------------------------------------------------------------- #
+AGENT_CLASS_DEFAULTS = {
+    "paper-extractor": {
+        "preferred_providers": ["deepseek", "qwen", "openai", "anthropic"],
+        "model_overrides": {
+            "deepseek": "deepseek-chat",
+            "qwen": "qwen-max",
+            "openai": "gpt-5",
+            "anthropic": "claude-sonnet-4-20250514",
+        },
+        "max_tokens": 8192,
+        "response_format": "yaml",
+    },
+    "claim-verifier": {
+        "preferred_providers": ["deepseek", "qwen"],
+        "model_overrides": {"deepseek": "deepseek-chat", "qwen": "qwen-max"},
+        "max_tokens": 1024,
+    },
+    "paragraph-planner": {
+        "preferred_providers": ["deepseek", "qwen"],
+        "max_tokens": 2048,
+    },
+    "lattice-merger": {
+        "preferred_providers": ["deepseek", "qwen"],
+        "max_tokens": 512,
+    },
+}
+
 
 _router = None
 
