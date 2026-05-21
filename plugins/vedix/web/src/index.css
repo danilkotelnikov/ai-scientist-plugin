@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --vedix-bg: 0 0% 100%;
+    --vedix-fg: 224 71.4% 4.1%;
+    --vedix-muted: 220 14.3% 95.9%;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, sans-serif;
+  }
+}
+
+@layer components {
+  .vedix-card {
+    @apply border border-gray-200 bg-white rounded-lg shadow-sm;
+  }
+
+  .vedix-input {
+    @apply border border-gray-300 rounded px-3 py-2 focus:outline-none
+      focus:ring-2 focus:ring-brand-500 focus:border-transparent
+      disabled:bg-gray-50 disabled:text-gray-400;
+  }
+
+  .vedix-button {
+    @apply inline-flex items-center justify-center rounded px-4 py-2
+      bg-brand-900 text-white font-medium hover:bg-brand-700
+      disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors;
+  }
+
+  .vedix-button-secondary {
+    @apply inline-flex items-center justify-center rounded px-4 py-2
+      border border-gray-300 text-gray-700 font-medium hover:bg-gray-50
+      disabled:opacity-50 transition-colors;
+  }
+}

@@ -22,3 +22,13 @@ ai-scientist-output/
 
 # Logs
 *.log
+
+# Node / web build
+node_modules/
+plugins/vedix/web/node_modules/
+plugins/vedix/web/dist/
+plugins/vedix/web/.vite/
+plugins/vedix/web/playwright-report/
+plugins/vedix/web/test-results/
+plugins/vedix/web/coverage/
+
