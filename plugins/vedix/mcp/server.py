@@ -727,8 +727,8 @@ def handle_request(request):
                         "tools": {}
                     },
                     "serverInfo": {
-                        "name": "ai-scientist",
-                        "version": "2.1.2"
+                        "name": "vedix",
+                        "version": "3.0.0"
                     }
                 }
             }
