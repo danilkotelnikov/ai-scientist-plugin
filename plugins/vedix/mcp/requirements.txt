@@ -34,3 +34,9 @@ mistralai>=1.2
 cohere>=5.13
 pytest-asyncio>=0.24
 respx>=0.21
+
+# v3.0.0 Block 3 — Novel rigor tracks (§4).
+# Lazily imported by orchestrator modules; tests gate on `pytest.importorskip`
+# so they pass even when a dep is missing locally.
+hdbscan>=0.8.33
+networkx>=3.0
