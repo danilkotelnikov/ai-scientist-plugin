@@ -1,5 +1,5 @@
 # Append the contents of this file to ~/.codex/config.toml to enable the
-# ai-scientist plugin in Codex.
+# vedix plugin in Codex.
 #
 # On Linux/macOS, replace ${env:USERPROFILE} with ${env:HOME}.
 #
@@ -26,40 +26,40 @@
 #    which the orchestrator needs.
 #
 # 2. [mcp_servers.X] duplicates:
-#    This file registers 9 MCP servers under [mcp_servers.ai-scientist],
+#    This file registers 9 MCP servers under [mcp_servers.vedix],
 #    [mcp_servers.mempalace], [mcp_servers.openalex],
 #    [mcp_servers.semanticscholar], [mcp_servers.arxiv],
 #    [mcp_servers.biorxiv], [mcp_servers.pubmed], [mcp_servers.annas-mcp],
 #    [mcp_servers.fetcher].
 #
 #    If your existing config.toml ALREADY registers any of these names
-#    (e.g. from a previous ai-scientist install or another plugin that
+#    (e.g. from a previous vedix install or another plugin that
 #    happens to use the same name), `codex restart` will fail with
 #    "duplicate key" because TOML forbids the same table twice.
 #
 #    Before appending, grep your config:
 #
-#        grep -E '^\[mcp_servers\.(ai-scientist|mempalace|openalex|semanticscholar|arxiv|biorxiv|pubmed|annas-mcp|fetcher)\]' ~/.codex/config.toml
+#        grep -E '^\[mcp_servers\.(vedix|mempalace|openalex|semanticscholar|arxiv|biorxiv|pubmed|annas-mcp|fetcher)\]' ~/.codex/config.toml
 #
 #    For each match, EITHER delete the existing block (if it's stale) OR
 #    skip the matching block from this file when copying. Do not paste a
 #    second copy on top.
 
 # ============================================================================
-# AI-Scientist core MCP -- knowledge store, codebase analyzer, meta-analysis
+# Vedix core MCP -- knowledge store, codebase analyzer, meta-analysis
 # ============================================================================
-[mcp_servers.ai-scientist]
+[mcp_servers.vedix]
 command = "python"
 args = [
-  "${env:USERPROFILE}/.codex/ai-scientist-plugin/plugins/ai-scientist/mcp/server.py",
+  "${env:USERPROFILE}/.codex/vedix/plugins/vedix/mcp/server.py",
   "--mode",
   "stdio",
 ]
-# AI_SCIENTIST_HOME and PYTHONPATH reference USERPROFILE; set them literally
+# VEDIX_HOME and PYTHONPATH reference USERPROFILE; set them literally
 # using your actual home path, or export them from your shell and forward via
 # env_vars. Example literal values shown below -- adjust to your system.
-# env_vars = ["AI_SCIENTIST_HOME", "PYTHONPATH"]
-env = { AI_SCIENTIST_HOME = "${env:USERPROFILE}/.ai-scientist", PYTHONPATH = "${env:USERPROFILE}/.codex/ai-scientist-plugin/plugins/ai-scientist/mcp/lib" }
+# env_vars = ["VEDIX_HOME", "PYTHONPATH"]
+env = { VEDIX_HOME = "${env:USERPROFILE}/.vedix", PYTHONPATH = "${env:USERPROFILE}/.codex/vedix/plugins/vedix/mcp/lib" }
 
 # ============================================================================
 # MemPalace — per-project memory DB with auto-save before context compaction
@@ -67,9 +67,9 @@ env = { AI_SCIENTIST_HOME = "${env:USERPROFILE}/.ai-scientist", PYTHONPATH = "${
 [mcp_servers.mempalace]
 command = "mempalace-mcp"
 # env_vars forwards MEMPALACE_ROOT from the user's shell environment.
-# Set MEMPALACE_ROOT in your shell (e.g. export MEMPALACE_ROOT="$HOME/.ai-scientist/palace")
+# Set MEMPALACE_ROOT in your shell (e.g. export MEMPALACE_ROOT="$HOME/.vedix/palace")
 # or keep the literal value below and edit to match your system.
-env = { MEMPALACE_ROOT = "${env:USERPROFILE}/.ai-scientist/palace" }
+env = { MEMPALACE_ROOT = "${env:USERPROFILE}/.vedix/palace" }
 
 # ============================================================================
 # Literature DB MCPs — all 6 enabled for Codex
@@ -95,7 +95,7 @@ env_vars = ["OPENALEX_EMAIL"]
 [mcp_servers.semanticscholar]
 command = "python"
 args = [
-  "${env:USERPROFILE}/.ai-scientist/external/semanticscholar-MCP-Server/semantic_scholar_server.py",
+  "${env:USERPROFILE}/.vedix/external/semanticscholar-MCP-Server/semantic_scholar_server.py",
 ]
 env_vars = ["SEMANTIC_SCHOLAR_KEY"]
 
@@ -108,7 +108,7 @@ args = ["arxiv-mcp-server"]
 [mcp_servers.biorxiv]
 command = "python"
 args = [
-  "${env:USERPROFILE}/.ai-scientist/external/bioRxiv-MCP-Server/biorxiv_server.py",
+  "${env:USERPROFILE}/.vedix/external/bioRxiv-MCP-Server/biorxiv_server.py",
 ]
 
 # PubMed — biomedical literature

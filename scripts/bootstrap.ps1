@@ -1,7 +1,7 @@
-# scripts/bootstrap.ps1 -- one-command installer for ai-scientist plugin (v2.1+).
+# scripts/bootstrap.ps1 -- one-command installer for vedix plugin (v3.0+).
 #
 # Usage (interactive):
-#   $r="$env:USERPROFILE\.ai-scientist\repo"; if(Test-Path "$r\.git"){ git -C $r pull --rebase }else{ git clone https://github.com/danilkotelnikov/ai-scientist-plugin.git $r }; & "$r\scripts\bootstrap.ps1"
+#   $r="$env:USERPROFILE\.vedix\repo"; if(Test-Path "$r\.git"){ git -C $r pull --rebase }else{ git clone https://github.com/danilkotelnikov/vedix.git $r }; & "$r\scripts\bootstrap.ps1"
 #
 # Usage (non-interactive, scripted -- pick exact hosts):
 #   $env:AISP_HOSTS = "claude,codex"   # or "all", "none", "claude", "codex", "gemini"
@@ -15,10 +15,10 @@
 
 $ErrorActionPreference = "Continue"
 
-$RepoUrl   = "https://github.com/danilkotelnikov/ai-scientist-plugin.git"
+$RepoUrl   = "https://github.com/danilkotelnikov/vedix.git"
 $Branch    = "master"
-$RepoDir   = "$env:USERPROFILE\.ai-scientist\repo"
-$AiHome    = "$env:USERPROFILE\.ai-scientist"
+$RepoDir   = "$env:USERPROFILE\.vedix\repo"
+$AiHome    = "$env:USERPROFILE\.vedix"
 $PalaceDir = "$AiHome\palace"
 
 # Per-host install timeout (seconds). Gemini's extension install in particular
@@ -121,7 +121,7 @@ function Prompt-HostSelection {
     if ($Detected.codex)  { Write-Host "  [2] Codex CLI    (~/.codex/)" }
     if ($Detected.gemini) { Write-Host "  [3] Gemini CLI   (~/.gemini/)" }
     Write-Host ""
-    Write-Host "Which hosts should I install ai-scientist into?"
+    Write-Host "Which hosts should I install vedix into?"
     Write-Host "  - Enter numbers separated by spaces or commas (e.g. '1 2', '1,3')"
     Write-Host "  - 'all' or empty (Enter): every detected host"
     Write-Host "  - 'none': skip all host registration (just install Python deps)"
@@ -188,7 +188,7 @@ if (Test-Path "$RepoDir\.git") {
     Ok "Cloned fresh"
 }
 
-$Plug = "$RepoDir\plugins\ai-scientist"
+$Plug = "$RepoDir\plugins\vedix"
 
 # 4. Install Python dependencies (idempotent, --user)
 Step "Installing Python dependencies (user-site)"
@@ -217,7 +217,7 @@ if ($mempalaceCmd) {
 
 # 4d. Run the plugin's own install.ps1 so the two cloned MCPs
 # (semanticscholar-MCP-Server + bioRxiv-MCP-Server) get cloned into
-# ~/.ai-scientist/external/. The bootstrap previously skipped this,
+# ~/.vedix/external/. The bootstrap previously skipped this,
 # leaving those two MCPs broken on first use.
 Step "Running plugin install.ps1 (provisions semanticscholar + biorxiv git clones)"
 Invoke-Native -IgnoreExitCode -Description "plugin install.ps1" -Script {
@@ -230,19 +230,19 @@ if ($selected.codex) {
     Write-Host ""
     Step "Registering plugin into Codex CLI"
 
-    $codexClone = "$env:USERPROFILE\.codex\ai-scientist-plugin"
+    $codexClone = "$env:USERPROFILE\.codex\vedix"
     if (-not (Test-Path $codexClone)) {
         cmd /c mklink /J "$codexClone" "$RepoDir" 2>&1 | Out-Null
-        Ok "Junctioned ~/.codex/ai-scientist-plugin -> $RepoDir"
+        Ok "Junctioned ~/.codex/vedix -> $RepoDir"
     } else {
-        Ok "~/.codex/ai-scientist-plugin already present"
+        Ok "~/.codex/vedix already present"
     }
 
     New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.agents\skills" | Out-Null
     New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.agents\agents" | Out-Null
     foreach ($pair in @(
-        @("$env:USERPROFILE\.agents\skills\ai-scientist", "$Plug\skills\ai-scientist"),
-        @("$env:USERPROFILE\.agents\agents\ai-scientist", "$Plug\agents")
+        @("$env:USERPROFILE\.agents\skills\vedix", "$Plug\skills\ai-scientist"),
+        @("$env:USERPROFILE\.agents\agents\vedix", "$Plug\agents")
     )) {
         $linkPath, $target = $pair
         if (Test-Path $linkPath) { cmd /c rmdir "$linkPath" 2>&1 | Out-Null }
@@ -289,8 +289,8 @@ if ($selected.claude) {
     Write-Host ""
     Step "Claude Code selected"
     Note "Open a Claude Code session and paste these two slash commands:"
-    Write-Host "      /plugin marketplace add danilkotelnikov/ai-scientist-plugin" -ForegroundColor White
-    Write-Host "      /plugin install ai-scientist@ai-scientist-plugin"             -ForegroundColor White
+    Write-Host "      /plugin marketplace add danilkotelnikov/vedix" -ForegroundColor White
+    Write-Host "      /plugin install vedix@vedix"                                   -ForegroundColor White
     Note "Slash commands cannot be issued from outside the agent session."
 } elseif ($detected.claude) {
     Note "Claude Code present but not selected -- skipping"

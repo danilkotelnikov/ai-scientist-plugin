@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# scripts/bootstrap.sh -- one-command installer for ai-scientist plugin (v2.1+).
+# scripts/bootstrap.sh -- one-command installer for vedix plugin (v3.0+).
 #
 # Usage (interactive):
-#   curl -fsSL https://raw.githubusercontent.com/danilkotelnikov/ai-scientist-plugin/master/scripts/bootstrap.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/danilkotelnikov/vedix/master/scripts/bootstrap.sh | bash
 #
 # Usage (non-interactive, scripted -- pick exact hosts):
 #   AISP_HOSTS=claude,codex bash bootstrap.sh
@@ -15,9 +15,9 @@
 set -e
 set -o pipefail
 
-REPO_URL="https://github.com/danilkotelnikov/ai-scientist-plugin.git"
+REPO_URL="https://github.com/danilkotelnikov/vedix.git"
 BRANCH="master"
-AI_HOME="$HOME/.ai-scientist"
+AI_HOME="$HOME/.vedix"
 REPO_DIR="$AI_HOME/repo"
 PALACE_DIR="$AI_HOME/palace"
 
@@ -75,7 +75,7 @@ prompt_selection() {
     [ "$detected_codex"  = "1" ] && echo "  [2] Codex CLI    (~/.codex/)"
     [ "$detected_gemini" = "1" ] && echo "  [3] Gemini CLI   (~/.gemini/)"
     echo
-    echo "Which hosts should I install ai-scientist into?"
+    echo "Which hosts should I install vedix into?"
     echo "  - Enter numbers separated by spaces or commas (e.g. '1 2', '1,3')"
     echo "  - 'all' or empty (Enter): every detected host"
     echo "  - 'none': skip all host registration"
@@ -163,7 +163,7 @@ else
     ok "Cloned fresh"
 fi
 
-PLUG="$REPO_DIR/plugins/ai-scientist"
+PLUG="$REPO_DIR/plugins/vedix"
 
 # 4. Install Python dependencies (idempotent, --user)
 step "Installing Python dependencies (user-site)"
@@ -185,7 +185,7 @@ fi
 
 # 4d. Run the plugin's own install.sh so the two cloned MCPs
 # (semanticscholar-MCP-Server + bioRxiv-MCP-Server) get cloned into
-# ~/.ai-scientist/external/. The bootstrap previously skipped this,
+# ~/.vedix/external/. The bootstrap previously skipped this,
 # leaving those two MCPs broken on first use.
 step "Running plugin install.sh (provisions semanticscholar + biorxiv git clones)"
 if bash "$PLUG/scripts/install.sh" 2>&1; then
@@ -199,18 +199,18 @@ if [ "$selected_codex" = "1" ]; then
     echo
     step "Registering plugin into Codex CLI"
 
-    CODEX_CLONE="$HOME/.codex/ai-scientist-plugin"
+    CODEX_CLONE="$HOME/.codex/vedix"
     if [ ! -e "$CODEX_CLONE" ]; then
         ln -s "$REPO_DIR" "$CODEX_CLONE"
-        ok "Symlinked ~/.codex/ai-scientist-plugin -> $REPO_DIR"
+        ok "Symlinked ~/.codex/vedix -> $REPO_DIR"
     else
-        ok "~/.codex/ai-scientist-plugin already present"
+        ok "~/.codex/vedix already present"
     fi
 
     mkdir -p "$HOME/.agents/skills" "$HOME/.agents/agents"
-    rm -rf "$HOME/.agents/skills/ai-scientist" "$HOME/.agents/agents/ai-scientist" 2>/dev/null || true
-    ln -sf "$PLUG/skills/ai-scientist" "$HOME/.agents/skills/ai-scientist"
-    ln -sf "$PLUG/agents"              "$HOME/.agents/agents/ai-scientist"
+    rm -rf "$HOME/.agents/skills/vedix" "$HOME/.agents/agents/vedix" 2>/dev/null || true
+    ln -sf "$PLUG/skills/ai-scientist" "$HOME/.agents/skills/vedix"
+    ln -sf "$PLUG/agents"              "$HOME/.agents/agents/vedix"
     ok "Symlinked skill + agents into ~/.agents/"
 
     CONFIG_TOML="$HOME/.codex/config.toml"
@@ -245,8 +245,8 @@ if [ "$selected_claude" = "1" ]; then
     echo
     step "Claude Code selected"
     note "Open a Claude Code session and paste these two slash commands:"
-    printf "      /plugin marketplace add danilkotelnikov/ai-scientist-plugin\n"
-    printf "      /plugin install ai-scientist@ai-scientist-plugin\n"
+    printf "      /plugin marketplace add danilkotelnikov/vedix\n"
+    printf "      /plugin install vedix@vedix\n"
     note "Slash commands cannot be issued from outside the agent session."
 elif [ "$detected_claude" = "1" ]; then
     note "Claude Code present but not selected -- skipping"
