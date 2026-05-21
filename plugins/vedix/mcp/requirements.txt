@@ -40,3 +40,7 @@ respx>=0.21
 # so they pass even when a dep is missing locally.
 hdbscan>=0.8.33
 networkx>=3.0
+
+# v3.0.0 Block 4 — Net-new functionality (§5).
+# numerical_audit and reproducibility_audit read CSV artifacts via pandas.
+pandas>=2.0
