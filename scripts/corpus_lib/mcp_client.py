@@ -66,10 +66,38 @@ class MCPClient:
     async def __aexit__(self, exc_type, exc, tb) -> None:
         await self.close()
 
+    @staticmethod
+    def _resolve_command_on_windows(command: str) -> str:
+        """On Windows, asyncio.create_subprocess_exec() does NOT apply PATHEXT,
+        so a bare ``npx`` / ``npm`` / ``uvx`` / ``mempalace-mcp`` isn't found
+        even though the shim is on PATH (as ``npx.cmd``, ``npm.cmd``, …).
+        Walk PATH manually with the PATHEXT-derived suffix list."""
+        import os as _os
+        import shutil as _shutil
+        if _os.name != "nt":
+            return command
+        if Path(command).is_file():
+            return command
+        # First try whatever-is-on-PATH directly
+        which = _shutil.which(command)
+        if which:
+            return which
+        # Try each Windows shim suffix in PATHEXT
+        pathext = _os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";")
+        for ext in pathext:
+            ext = ext.strip()
+            if not ext:
+                continue
+            candidate = _shutil.which(command + ext.lower())
+            if candidate:
+                return candidate
+        return command  # last-resort: hand it to subprocess and let it fail loudly
+
     async def connect(self) -> None:
         """Spawn the server and run the MCP initialize / initialized handshake."""
+        resolved_cmd = self._resolve_command_on_windows(self.command)
         self._proc = await asyncio.create_subprocess_exec(
-            self.command,
+            resolved_cmd,
             *self.args,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,

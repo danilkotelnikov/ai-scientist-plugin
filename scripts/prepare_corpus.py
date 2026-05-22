@@ -136,11 +136,25 @@ async def prepare_one_pair(
     # Stage 3 — extraction
     if not cp.is_done("extraction"):
         text_dir = root / "text"
+        n_ok = n_skipped = 0
         for p in candidates:
             pdf = root / "pdf" / f"{_pid(p)}.pdf"
-            if pdf.exists():
+            if not pdf.exists():
+                continue
+            try:
                 extraction.extract(pdf, text_dir / f"{_pid(p)}.txt")
-        cp.mark_done("extraction")
+                n_ok += 1
+            except extraction.UnsupportedFileFormat as exc:
+                # Anna's Archive sometimes serves RAR/ZIP archives for the
+                # md5 we requested. Skip gracefully so partial corpora still
+                # work end-to-end.
+                print(f"  [extract] skip {pdf.name}: {exc}")
+                n_skipped += 1
+            except Exception as exc:  # noqa: BLE001
+                # Corrupted / encrypted / scanned-only PDFs land here.
+                print(f"  [extract] skip {pdf.name} (extractor error): {exc}")
+                n_skipped += 1
+        cp.mark_done("extraction", payload={"extracted": n_ok, "skipped": n_skipped})
     print("  [3/10] text extracted")
 
     # Stage 4 — language verification
@@ -258,7 +272,26 @@ async def main_async(argv: list[str] | None = None) -> int:
     ap.add_argument("--corpus-root", default=None, type=Path)
     ap.add_argument("--force-restart", action="store_true")
     ap.add_argument("--negatives-cap", type=int, default=1000)
+    ap.add_argument(
+        "-v", "--verbose",
+        action="count",
+        default=0,
+        help="Increase log verbosity (-v INFO, -vv DEBUG).",
+    )
     args = ap.parse_args(argv)
+
+    # Configure logging based on --verbose count.
+    import logging
+    level = logging.WARNING
+    if args.verbose == 1:
+        level = logging.INFO
+    elif args.verbose >= 2:
+        level = logging.DEBUG
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)-5s %(name)s | %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
     corpus_root = args.corpus_root  # defaults to _corpus_root() in prepare_one_pair
 

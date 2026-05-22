@@ -11,8 +11,30 @@ from __future__ import annotations
 from pathlib import Path
 
 
+class UnsupportedFileFormat(Exception):
+    """Raised when ``extract`` is given a file that doesn't match its
+    declared extension (e.g. ``.pdf`` extension but RAR/ZIP magic, common
+    when fetching from Anna's Archive which sometimes serves archives)."""
+
+
+def _file_magic(p: Path, nbytes: int = 8) -> bytes:
+    with p.open("rb") as f:
+        return f.read(nbytes)
+
+
 def _pdf_to_text(p: Path) -> str:
-    """Extract text from a PDF using pdfminer.six (lazy-imported)."""
+    """Extract text from a PDF using pdfminer.six (lazy-imported).
+
+    Validates the PDF magic bytes first. If the file is actually a
+    RAR/ZIP/other archive (Anna's Archive serves these for some titles),
+    raises ``UnsupportedFileFormat`` so the caller can skip cleanly.
+    """
+    magic = _file_magic(p)
+    if not magic.startswith(b"%PDF-"):
+        raise UnsupportedFileFormat(
+            f"{p.name}: expected PDF, got magic {magic[:8]!r} "
+            f"(likely a RAR/ZIP/other archive served by the source)"
+        )
     from pdfminer.high_level import extract_text  # type: ignore[import-untyped]
 
     return extract_text(str(p))
