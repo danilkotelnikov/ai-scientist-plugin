@@ -1,317 +1,168 @@
-# AI-Scientist Plugin
+# Vedix
 
-End-to-end agentic research pipeline that runs across **Claude Code, Codex CLI, and Gemini CLI** with the same behavior on each. Literature search → ideation → hypothesis → experiment (single-shot or BFTS tree-search) → manuscript → peer review → visual figure validation.
+An end-to-end agentic research workbench that turns a topic into a venue-ready manuscript. Runs natively inside Claude Code, Codex CLI, Gemini CLI, and Antigravity — same skill, same 17 subagents, same MCP servers, same artifact set on each host.
 
-**16 dedicated subagents**, each pinned per-host to a specific model with extended thinking. Auto-routes natural-language requests to the smallest agent subset.
+Vedix searches the literature, generates ideas, writes a hypothesis, codes and runs the experiment, drafts the manuscript, peer-reviews itself, validates every figure visually, and emits a compiled PDF plus a Word twin. Every numerical claim, citation, and figure caption is traced back to a source via the Source-Grounded Claim Architecture — the model cannot insert assertions that it didn't ground in a primary source.
 
-## Highlights
+## What it does
 
-- **Cross-host parity** — same skill, same agents, same MCPs on Claude Code, Codex, and Gemini CLI. Per-host model pinning written into each agent's frontmatter.
-- **9 pre-configured MCP servers** auto-registered on install (knowledge store, MemPalace, OpenAlex, Semantic Scholar, arXiv, bioRxiv, PubMed, Anna's Archive, fetcher).
-- **Per-project memory isolation** — MemPalace DB lives inside each job's output dir at `<output_dir>/.palace/`. No cross-project context can leak.
-- **Dual-route operator** — every phase can run via the .md subagent (host-native, lightweight) OR via the canonical Sakana Python script bundled at `mcp/lib/sakana/` (upstream-faithful, benchmark-comparable). Pick per phase.
-- **BFTS tree-search experiment runner** (canonical Sakana algorithm) — explores N implementation variants in parallel and picks the best by metric. Gated on `--bfts`.
-- **VLM figure review** — duplicate detection, caption-content alignment, per-figure scoring 1–4 across clarity/relevance/quality.
-- **Codex cross-validation (Claude Code-exclusive)** — every ideation / hypothesis / codegen / manuscript / review output is cross-checked against Codex via the [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) bridge. On disagreement, the user is prompted to adopt Codex's alternative, keep Claude's output, merge, or re-run. On Claude API errors / ToS refusals, the same task auto-falls-back to Codex. Anna's Archive searches are delegated to Codex by default.
-- **LLM-driven install prompts** — copy-paste prompts at `docs/AGENT_INSTALL_PROMPTS.md` that any agent can follow to install the plugin end-to-end on any host.
+- **Literature → manuscript in one command.** Nine MCP-backed sources (OpenAlex, Semantic Scholar, arXiv, bioRxiv, PubMed, Anna's Archive, fetcher, plus the bundled knowledge store and per-project MemPalace memory) feed a pipeline of 17 specialized subagents.
+- **Source-Grounded Claim Architecture (SGCA).** Every sentence in the manuscript is bound to an allowed-set of evidence drawn from the literature, the experiment ledger, and the codebase. The numerical-claim audit and the citation-graph audit re-verify before stage-gate exit.
+- **Cross-host parity.** The same skill prompt and the same agent definitions run on Claude Code's `Task` tool, Codex's `spawn_agent`, and Gemini CLI's inline reasoning. Each agent declares per-host model pinning in its frontmatter.
+- **23 publisher templates and seven first-class languages.** Render the same manuscript into Nature, Elsevier, IEEE, ACM, Frontiers, Wiley, Sage, MDPI, Springer-Nature, RSC, ACS, IOP, AIP, APS, Cell, PLOS, BMJ, Lancet, JAMA, Russian-region journals, and four more — in English, Russian, Spanish, German, French, Chinese, or Japanese.
 
-## Install (one command, interactive picker)
+## Install
 
-The bootstrap detects every agent host you have (Claude Code, Codex CLI, Gemini CLI), **asks you which to install into** (so you can skip Gemini if its extension install hangs, install only the host you actually use, etc.), clones the canonical repo to `~/.ai-scientist/repo/`, installs Python deps + MemPalace, idempotently merges the Codex `config.toml`, runs the MCP self-test, and prints the two slash commands you need to paste into Claude Code. Re-running is safe — every step is idempotent.
-
-**Windows (PowerShell — public repo):**
-
-```powershell
-iwr -useb https://raw.githubusercontent.com/danilkotelnikov/ai-scientist-plugin/master/scripts/bootstrap.ps1 | iex
-```
-
-**Windows (PowerShell — private repo, uses your `git` auth):**
-
-```powershell
-$r="$env:USERPROFILE\.ai-scientist\repo"; if(Test-Path "$r\.git"){ git -C $r pull --rebase }else{ git clone https://github.com/danilkotelnikov/ai-scientist-plugin.git $r }; & "$r\scripts\bootstrap.ps1"
-```
-
-**Linux / macOS (public repo):**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/danilkotelnikov/ai-scientist-plugin/master/scripts/bootstrap.sh | bash
-```
-
-**Linux / macOS (private repo):**
-
-```bash
-R="$HOME/.ai-scientist/repo"; { [ -d "$R/.git" ] && git -C "$R" pull --rebase || git clone https://github.com/danilkotelnikov/ai-scientist-plugin.git "$R"; } && bash "$R/scripts/bootstrap.sh"
-```
-
-You will see something like:
-
-```
-Detected agent CLI hosts on this machine:
-  [1] Claude Code (~/.claude/)
-  [2] Codex CLI    (~/.codex/)
-  [3] Gemini CLI   (~/.gemini/)
-
-Which hosts should I install ai-scientist into?
-  - Enter numbers separated by spaces or commas (e.g. '1 2', '1,3')
-  - 'all' or empty (Enter): every detected host
-  - 'none': skip all host registration (just install Python deps)
-
-  Your choice: _
-```
-
-The bootstrap then:
-
-- creates `~/.codex/ai-scientist-plugin` as a junction/symlink to the canonical repo if Codex was selected
-- runs the merge helper (`scripts/_merge_codex_config.py`) which adds the 9 plugin MCP servers to `~/.codex/config.toml` between sentinel markers, never duplicates them, never breaks an existing `[features]` table, and never injects a UTF-8 BOM
-- runs `gemini extensions install` **with a 90-second hard timeout** if Gemini was selected (the Gemini CLI extension install is known to hang occasionally; the timeout means the bootstrap always returns control to you)
-- prints the two `/plugin marketplace add` + `/plugin install` slash commands if Claude Code was selected (slash commands cannot be issued from outside the agent session)
-
-### Skip the prompt (scripted / re-runs)
-
-Pre-fill the answer via env var so the bootstrap never asks:
-
-```powershell
-$env:AISP_HOSTS = "claude,codex"   # or "all" / "none" / "claude" / "codex" / "gemini"
-iwr -useb https://raw.githubusercontent.com/danilkotelnikov/ai-scientist-plugin/master/scripts/bootstrap.ps1 | iex
-```
-
-```bash
-AISP_HOSTS=claude,codex bash <(curl -fsSL https://raw.githubusercontent.com/danilkotelnikov/ai-scientist-plugin/master/scripts/bootstrap.sh)
-```
-
-## Update
-
-Same one-liner. Both bootstrap and update are idempotent; "update" just re-runs the bootstrap, which `git stash`-es any local clone changes, fetches the latest, re-installs deps, and re-merges the config.
-
-```powershell
-iwr -useb https://raw.githubusercontent.com/danilkotelnikov/ai-scientist-plugin/master/scripts/update.ps1 | iex
-```
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/danilkotelnikov/ai-scientist-plugin/master/scripts/update.sh | bash
-```
-
-## Required env var (set once)
-
-**Windows (PowerShell, persistent across sessions):**
-
-```powershell
-[Environment]::SetEnvironmentVariable("OPENALEX_EMAIL", "your-email@example.com", "User")
-```
+One command on Linux, macOS, or Windows. The bootstrap detects which CLI hosts you have (Claude Code, Codex CLI, Gemini CLI), asks which to register into, installs Python deps, merges Codex config idempotently, runs the MCP self-test, and prints the slash commands you paste into Claude Code.
 
 **Linux / macOS:**
 
 ```bash
-echo 'export OPENALEX_EMAIL="your-email@example.com"' >> ~/.bashrc
+curl -fsSL https://raw.githubusercontent.com/danilkotelnikov/vedix/master/scripts/bootstrap.sh | bash
 ```
 
-> **OpenAlex API key required since 2026-02-13.** OpenAlex made API keys mandatory: keyless requests get only 100 credits/day (testing only). Singleton DOI lookups cost 0 credits with a free key. The `OPENALEX_EMAIL` is also used as the polite-pool identifier for Crossref. Get a free key at https://openalex.org/api-keys.
+**Windows (PowerShell):**
 
-Optional env vars (each unlocks more functionality):
+```powershell
+iwr -useb https://raw.githubusercontent.com/danilkotelnikov/vedix/master/scripts/bootstrap.ps1 | iex
+```
+
+For Claude Code specifically, after the bootstrap finishes:
+
+```
+/plugin marketplace add danilkotelnikov/vedix
+/plugin install vedix@vedix
+```
+
+Re-running is safe. The bootstrap is idempotent.
+
+## Set one env var
+
+OpenAlex made API access mandatory on 2026-02-13. Vedix uses your email as the polite-pool identifier:
 
 ```bash
-export SEMANTIC_SCHOLAR_KEY="your-key"          # unlocks Semantic Scholar /search
-export ANNAS_BASE_URL="annas-archive.gl"        # full-text via Anna's Archive
-export ANNAS_DOWNLOAD_PATH="$HOME/Downloads/AA"
-export ANNAS_SECRET_KEY="your-key"
+export OPENALEX_EMAIL="you@example.com"
 ```
 
-## Manual install (legacy, only if the bootstrap fails)
+Everything else (Semantic Scholar key, Anna's Archive key, provider API keys) is optional and individually unlocks more functionality.
 
-The bootstrap is the supported path. The host-specific manual install guides at [`.codex/INSTALL.md`](.codex/INSTALL.md) and [`.gemini/INSTALL.md`](.gemini/INSTALL.md), and the agent-driven prompts at [`docs/AGENT_INSTALL_PROMPTS.md`](docs/AGENT_INSTALL_PROMPTS.md), remain available for environments where the bootstrap one-liner is blocked or for users who prefer to step through each phase by hand.
+## Quickstart
 
-## Usage
-
-```
-/ai-scientist <topic>                                       # full pipeline
-/ai-scientist <topic> --domain ml --codebase C:/repo        # full pipeline with codebase grounding
-/ai-scientist <topic> --bfts                                # use BFTS tree-search experiment runner
-/ai-scientist <topic> --use-canonical-scripts               # invoke upstream Sakana .py instead of .md agents
-/ai-scientist-list                                          # list jobs
-/ai-scientist-output <job-id>                               # fetch artifacts
-/ai-scientist-query <terms>                                 # search persistent knowledge store
-/ai-scientist-meta                                          # meta-analysis view
-/ai-scientist-resume <job-id>                               # resume failed job
-```
-
-Natural-language invocations also work — the skill auto-routes to the right agent subset:
+From inside any supported host:
 
 ```
-review my paper at C:/papers/draft.tex                      # → Reviewer only
-review the figures in manuscript.pdf                        # → VLM Reviewer only
-build plot for losses.npy                                   # → Plotter only
-find papers on attention mechanisms                         # → LiteratureSearcher only
-look at advanced NN algorithms and write code, then analyze # → Lit + CodeGen + Run + Plotter
-compare RWKV vs Mamba experimentally                        # → CodeGen + Experiment + Plotter + Stats
+/vedix solvent polarity effects on Diels-Alder kinetics
 ```
 
-## The 16 agents
+Or in plain English — the skill auto-routes to the right subset of agents:
 
-### Per-host model pinning
+```
+review my paper at C:/papers/draft.tex
+build a plot from losses.npy
+find papers on attention mechanisms
+compare RWKV vs Mamba experimentally
+```
 
-Every agent declares its model in three frontmatter blocks (`model:` for Claude Code, `codex:` for Codex CLI, `gemini:` for Gemini CLI). The orchestrator picks the right block based on the host.
+Outputs land in `~/.vedix/jobs/<job_id>/`:
 
-| # | Agent | Claude Code | Codex CLI | Gemini CLI |
-|---|---|---|---|---|
-| 1 | ideator | opus, 48k thinking | gpt-5.5 xhigh, 128k out, 1.05M ctx | gemini-3.1-pro-preview, level=high, 65k out, 2M ctx |
-| 2 | codebase-scanner | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
-| 3 | literature-searcher | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
-| 4 | hypothesizer | opus, **64k** | gpt-5.5 xhigh, 128k out, 1.05M ctx | gemini-3.1-pro-preview, level=high, 65k out, 2M ctx |
-| 5 | code-generator | opus, 48k | gpt-5.5 xhigh, 128k out, 1.05M ctx | gemini-3.1-pro-preview, level=high, 65k out, 2M ctx |
-| 6 | experiment-runner | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
-| 7 | plotter | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
-| 8 | manuscript-writer | opus, 48k | gpt-5.5 xhigh, 128k out, 1.05M ctx | gemini-3.1-pro-preview, level=high, 65k out, 2M ctx |
-| 9 | citator | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
-| 10 | reviewer | opus, **64k** | gpt-5.5 xhigh, 128k out, 1.05M ctx | gemini-3.1-pro-preview, level=high, 65k out, 2M ctx |
-| 11 | meta-analyst | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
-| 12 | fixer | sonnet, 16k | gpt-5.4 high, 24k out | gemini-3-flash-preview, budget=16k, 16k out, 1M ctx |
-| 13 | **vlm-reviewer** | opus, 48k | gpt-5.5 high, 65k out | gemini-3.1-pro-preview, level=high, 32k out, 2M ctx |
-| 14 | **tree-search-runner** | opus, **64k** | gpt-5.5 xhigh, 65k out | gemini-3.1-pro-preview, level=high, 32k out, 2M ctx |
-| 15 | **codex-cross-validator** *(CC-exclusive)* | sonnet, 8k | gpt-5.4 high, 16k out | gemini-3-flash-preview, budget=8k, 8k out, 1M ctx |
-| 16 | **slide-presenter** | opus, 48k | gpt-5.5 xhigh, 65k out | gemini-3.1-pro-preview, level=high, 32k out, 2M ctx |
+```
+manuscript.pdf
+manuscript.docx
+manuscript.tex
+references.bib
+results.csv
+experiment.py
+figures/
+sgca/sentence_ledger.jsonl
+rigor/{citation_graph,counterfactual,adversarial_review,provenance}.json
+logs/orchestrator.log
+```
 
-> Agent 15 is a meta-agent that pipes outputs to Codex via the bridge CLI. It only runs on Claude Code (skipped on Codex/Gemini hosts).
+## How it works
 
-### Pipeline phases
+The Python orchestrator at `plugins/vedix/mcp/lib/orchestrator/pipeline.py` owns retries, token accounting, semantic convergence, ensemble reviewers, stage-gate verification, and the SGCA ledger. The MCP server emits dispatch instructions; the host CLI invokes the matching subagent via its native mechanism and returns the output. The pipeline owns the state machine — agents are stateless workers.
 
-| Phase | Agent | Bundled canonical .py |
+| # | Subagent | Role |
 |---|---|---|
-| -1 Intent classification | (skill) | — |
-| 0 Init | (skill) — creates per-project palace at `<output_dir>/.palace/` | — |
-| 0.5 Ideation | ideator | `mcp/lib/sakana/perform_ideation_temp_free.py` |
-| 0.75 Codebase scan | codebase-scanner | — |
-| 1 Literature search | literature-searcher (×6 parallel: openalex, arxiv, pubmed, biorxiv, semanticscholar, annas) | — |
-| 2 Hypothesis | hypothesizer | — |
-| 3 Codegen | code-generator | — |
-| 4a Experiment (single-shot) | experiment-runner | — |
-| 4b Experiment (BFTS) | tree-search-runner | `mcp/lib/sakana/treesearch/perform_experiments_bfts_with_agentmanager.py` |
-| 5.5 Plot aggregation | plotter | `mcp/lib/sakana/perform_plotting.py` |
-| 5 Manuscript | manuscript-writer (with 6 nested section subagents) | `mcp/lib/sakana/perform_writeup.py` (NeurIPS) / `perform_icbinb_writeup.py` (workshop) |
-| 6 Citation enrichment | citator | — |
-| 7 Self-review (textual) | reviewer | `mcp/lib/sakana/perform_llm_review.py` |
-| 8 LaTeX compile | (skill) | — |
-| 8.25 Word export | (skill — pandoc, falls back to anthropic-skills:docx) | — |
-| 8.5 VLM figure review | vlm-reviewer | `mcp/lib/sakana/perform_vlm_review.py` |
-| 9 Knowledge indexing | (skill — direct MCP) | — |
-| 10 Meta-analysis | meta-analyst | — |
-| 11 Slide generation | slide-presenter | — |
-| F Fixer (on any failure) | fixer | — |
+| 1 | `ideator` | Generate research ideas, novelty-check against OpenAlex / Semantic Scholar |
+| 2 | `codebase-scanner` | Map a target repo into entry points, modules, extension points |
+| 3 | `literature-searcher` | Six-source parallel literature pull (one worker per source) |
+| 4 | `hypothesizer` | Testable hypothesis with mathematical model + statistical framework |
+| 5 | `code-generator` | Experiment script + `requirements.txt` per the domain template |
+| 6 | `experiment-runner` | Install deps, run, parse stderr, patch up to 3 rounds |
+| 7 | `tree-search-runner` | Best-First Tree Search variant explorer (gated on `--bfts`) |
+| 8 | `plotter` | Three-cycle iterative figure refinement + Okabe-Ito palette |
+| 9 | `paper-extractor` | Pull structured facts out of cited papers into the allowed-set |
+| 10 | `manuscript-writer` | Six parallel section-writers (Abstract, Intro, Methods, Results, Discussion, Conclusion) |
+| 11 | `citator` | Bidirectional citation enrichment, up to five rounds |
+| 12 | `reviewer` | NeurIPS-style multi-pass adversarial review |
+| 13 | `vlm-reviewer` | Vision-language figure review — duplicates, caption-content alignment |
+| 14 | `meta-analyst` | Cross-job success-rate and failure-pattern aggregation |
+| 15 | `fixer` | Diagnose pipeline failures and surface 2-4 fix options |
+| 16 | `slide-presenter` | Beamer PDF + python-pptx editable deck + speaker notes |
+| 17 | `codex-cross-validator` | Claude Code-exclusive — cross-checks every ideation, hypothesis, codegen, manuscript, review output against Codex via the [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) bridge |
 
-## 9 pre-configured MCP servers
+## Source-Grounded Claim Architecture
 
-| MCP | Source | Purpose |
+Each manuscript sentence carries an entry in `sgca/sentence_ledger.jsonl`:
+
+- The sentence text.
+- The allowed set of supporting evidence (paper DOIs, experiment-result IDs, codebase line references).
+- The verifier verdict (`supported` / `partial` / `unsupported`).
+- The author agent and the timestamp.
+
+Any sentence that fails verification triggers a re-write before the manuscript exits its stage gate. The same ledger drives the post-experiment numerical-claim audit (`numerical_audit.json`) and the citation-graph audit (`citation_graph.json`).
+
+## Bundled MCP servers
+
+The install registers nine MCP servers in your host config. Eight are external; one is bundled with Vedix.
+
+| MCP | Source | Role |
 |---|---|---|
-| `ai-scientist` | bundled in plugin | Knowledge store (SQLite + ChromaDB), codebase analyzer, meta-analysis |
-| `mempalace` | [MemPalace/mempalace](https://github.com/MemPalace/mempalace) | Per-project memory DB with auto-save hooks |
+| `vedix` | bundled | Knowledge store (SQLite FTS5 + ChromaDB), codebase analyzer, meta-analysis |
+| `mempalace` | [MemPalace/mempalace](https://github.com/MemPalace/mempalace) | Per-project memory; auto-saves before context compaction |
 | `openalex` | [drAbreu/alex-mcp](https://github.com/drAbreu/alex-mcp) | 240M+ scholarly works |
 | `semanticscholar` | [JackKuo666/semanticscholar-MCP-Server](https://github.com/JackKuo666/semanticscholar-MCP-Server) | Semantic Scholar full API |
-| `arxiv` | `arxiv-mcp-server` (PyPI via uvx) | Preprints (CS/physics/math/bio) |
+| `arxiv` | `arxiv-mcp-server` | Preprints (CS, physics, math, bio) |
 | `biorxiv` | [JackKuo666/bioRxiv-MCP-Server](https://github.com/JackKuo666/bioRxiv-MCP-Server) | Life-sciences preprints |
-| `pubmed` | `pubmed-mcp` (npm via npx) | Biomedical literature |
-| `annas-mcp` | `annas-mcp` (npm via npx) | Anna's Archive full-text |
-| `fetcher` | `fetcher-mcp` (npm via npx) | HTTP fallback for Consensus + Crossref |
+| `pubmed` | `pubmed-mcp` | Biomedical literature |
+| `annas-mcp` | `annas-mcp` | Anna's Archive full-text |
+| `fetcher` | `fetcher-mcp` | HTTP fallback for Consensus and Crossref |
 
-The install script auto-installs all of these. See **[Per-MCP configuration checklist](docs/AGENT_INSTALL_PROMPTS.md#per-mcp-configuration-checklist-referenced-by-every-install-prompt)** for env-var requirements and verification probes.
-
-## Codex bridge (Claude Code-exclusive)
-
-Programmatic delegation to Codex via the [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin. The bridge is a Python module (`mcp/lib/codex_bridge/`) with a CLI wrapper (`mcp/scripts/codex_bridge_cli.py`) so any agent, hook, or script can invoke Codex with strict timeouts and auto-cancel.
-
-**Three integration points:**
-
-1. **Cross-validation** — after every cross-validatable Claude phase (configurable per-phase: ideation, hypothesis, code_generation, manuscript, review), the orchestrator dispatches `ai-scientist-codex-cross-validator`. The validator pipes Claude's output + the original task inputs to Codex, asks Codex to score against a per-task rubric, and returns one of:
-   - `agree` → proceed silently
-   - `minor_disagree` → log discrepancy to palace, proceed
-   - `major_disagree` → surface `AskUserQuestion` with options: **adopt Codex's alternative** / **keep Claude's** / **merge** / **re-run Claude with discrepancies as feedback**
-   - `codex_error` → log, proceed with Claude's output (cross-validation never blocks the pipeline)
-
-2. **Auto-fallback on Claude failure** — a `PostToolUse` hook (`hooks/codex-fallback-detect.sh`) runs after every `Task` call. It pipes the response through `codex_bridge_cli.py failure-class` (cheap regex check, no Codex call), which returns `api_error` / `tos_refusal` / `empty` / `ok`. On non-`ok`, the orchestrator automatically re-prompts the same task to Codex via `codex_bridge_cli.py fallback`. Codex's output replaces Claude's, logged with tag `fallback:<class>`.
-
-3. **Anna's Archive delegation** — when `codex_bridge.cross_validate_phases.literature_search: "annas_only"` (default), the literature-searcher's Anna's Archive worker is replaced by `codex_bridge_cli.py annas <query>`. Sidesteps any Claude-Code-specific rate limits or restrictions on `mcp__annas-mcp__*`. Other sources (OpenAlex, arXiv, PubMed, bioRxiv, Semantic Scholar) still use Claude's parallel literature-searcher dispatch.
-
-**Timeout discipline** — every Codex call has a hard timeout (`codex_bridge.default_timeout_seconds`, default 600s; cross-validation 300s). On timeout the underlying Codex job is auto-cancelled. Long tasks (BFTS, manuscript writeup) can be backgrounded; the orchestrator polls `codex_bridge_cli.py status <job_id>` until done or timeout.
-
-**Activation requires:**
-1. Host is Claude Code (auto-detected via `~/.claude/`).
-2. `openai/codex-plugin-cc` is installed: `/plugin install codex@openai-codex` from inside Claude Code.
-3. Codex CLI is authenticated (ChatGPT subscription or `OPENAI_API_KEY`).
-4. `codex_bridge.enabled: true` in settings (default).
-
-If any precondition fails, the orchestrator skips Codex calls and the rest of the pipeline runs on Claude alone — no errors raised.
-
-**CLI surface** (usable from any shell or hook):
-
-```bash
-# Submit a task
-python <plugin>/mcp/scripts/codex_bridge_cli.py task "Refactor utils.py" --timeout 300
-
-# Cross-validate (read JSON spec from stdin)
-echo '{"task_type":"code","claude_output":"...","task_inputs":{...}}' \
-  | python codex_bridge_cli.py cross-validate
-
-# Re-prompt to Codex when Claude failed
-echo '{"original_prompt":"...","failure_reason":"tos_refusal"}' \
-  | python codex_bridge_cli.py fallback
-
-# Delegate Anna's Archive search to Codex
-python codex_bridge_cli.py annas "ridge regression heteroscedastic"
-
-# Check failure class of arbitrary text
-echo "I cannot help with that" | python codex_bridge_cli.py failure-class
-# -> tos_refusal  (exit 1)
-
-# Detect host
-python codex_bridge_cli.py detect-host
-# -> claude_code | codex | gemini | unknown
-```
-
-Full settings at [`plugins/ai-scientist/settings/default-settings.json`](plugins/ai-scientist/settings/default-settings.json) under `codex_bridge`.
-
-## Memory model — per-project, no cross-project leakage
+## Memory: per-project, no cross-project leakage
 
 Two layers:
 
-| Layer | Path | Lifetime | What's stored |
-|---|---|---|---|
-| **Cross-job global knowledge** | `~/.ai-scientist/knowledge.db` (SQLite + ChromaDB) | All jobs forever | Papers (deduped), hypotheses, benchmark outcomes, claims, knowledge graph triples, trajectories |
-| **Per-project palace** | `<output_dir>/.palace/` | One project | Wings → rooms → drawers (full conversation context, agent diaries, intermediate states). Lives INSIDE the job dir — deleting the project removes the palace |
+- **Cross-job global knowledge** — `~/.vedix/knowledge.db` (SQLite + ChromaDB). Papers, hypotheses, benchmark outcomes, claims, knowledge-graph triples, trajectories.
+- **Per-project palace** — `<output_dir>/.palace/`. Wings → rooms → drawers (conversation context, agent diaries, intermediate states). Lives inside the job directory; deleting the project removes the palace.
 
-**Strict isolation guarantee**: every agent's prompt includes the universal MemPalace contract — call `mcp__mempalace__wake_up(root="<output_dir>/.palace", ...)` on entry, `mcp__mempalace__mine(root="<output_dir>/.palace", ...)` on exit. Agents never read or write any other palace path.
+Every agent calls `mcp__mempalace__wake_up(root="<output_dir>/.palace")` on entry and `mcp__mempalace__mine(root="<output_dir>/.palace")` on exit. Agents never read or write any other palace path.
 
-**Auto-save lifecycle** (no manual calls needed):
-- **SessionStart hook** (`hooks/mempalace-recall.sh`) — emits 4k-token wake-up summary on session resume.
-- **PreCompact hook** (`hooks/mempalace-save.sh precompact`) — mines in-flight conversation before context is compacted.
-- **Stop hook** (`hooks/mempalace-save.sh stop`) — final save on agent exit.
+## Native dispatch, BYOK as optional fallback
 
-## Templates
+By default Vedix dispatches through the host CLI's native subagent mechanism (Task tool, `spawn_agent`, inline reasoning). The host's authentication carries the LLM cost — no extra API key needed.
 
-| Type | Bundled at | Templates |
-|---|---|---|
-| LaTeX | `mcp/templates/latex/` | aiscientist-default, overleaf-minimal, elsevier-cas-sc, ieee-conference, acm-sig, **icml-2025** (canonical Sakana), **icbinb** (workshop) |
-| Word | `mcp/templates/word/` | arxiv-shared-1, minimalist, two-column-academic |
-| Few-shot examples | `mcp/templates/fewshot/` | attention.{pdf,json,txt}, carpe_diem, automated_relational |
-| Idea seeds | `mcp/templates/ideas/` | i_cant_believe_its_not_better.{json,md,py} |
+If you want to route specific phases through a different provider, opt into the Bring-Your-Own-Key chain:
 
-Visual validation pass on rendered PNGs (Phase 8.5) — vlm-reviewer agent reads images directly via multimodal Read.
+```bash
+python -m vedix provider add anthropic --api-key "<key>"
+python -m vedix provider add openai    --api-key "<key>"
+python -m vedix provider set-chain anthropic openai
+```
 
-## Tweaking
+Fourteen providers supported: Anthropic, OpenAI, Google, DashScope (Qwen), GigaChat, Mistral, Cohere, plus seven more. Each adapter is lazily imported so installing only the SDKs you actually configure is fine.
 
-User overrides go in `~/.claude/settings.json` (Claude Code) / `~/.codex/config.toml` (Codex) / `~/.gemini/settings.json` (Gemini):
+## Configuration
+
+User overrides go in `~/.claude/settings.json` (Claude Code), `~/.codex/config.toml` (Codex), or `~/.gemini/settings.json` (Gemini):
 
 ```json
 {
   "plugins": {
-    "ai-scientist": {
+    "vedix": {
       "agents": {
         "reviewer": { "model": "sonnet", "thinking_budget": 32000 }
       },
-      "codex_agents": {
-        "reviewer": { "model": "gpt-5.4", "reasoning_effort": "high", "max_output_tokens": 32768 }
-      },
-      "gemini_agents": {
-        "reviewer": { "model": "gemini-2.5-pro", "thinking_budget": 24576, "max_output_tokens": 16384, "context_window": 2000000 }
-      },
-      "interactivity": "full",
       "literature": { "max_papers": 30 },
       "experiment": { "use_bfts": true, "bfts_time_budget_minutes": 60 },
       "memory": { "scope": "project", "isolation": "strict" }
@@ -320,101 +171,31 @@ User overrides go in `~/.claude/settings.json` (Claude Code) / `~/.codex/config.
 }
 ```
 
-Full schema at [`plugins/ai-scientist/settings/settings.schema.json`](plugins/ai-scientist/settings/settings.schema.json).
-
-## Architecture
-
-> v2.1.0 ships strict literature cross-validation, an iterative 3-cycle plotter, anti-LLMish manuscript discipline, and Codex-primary `spawn_agent` dispatch.
->
-> Spec: `docs/specs/2026-04-28-v2.1-strict-validation-codex-native.md`. Plan: `docs/plans/2026-04-28-v2.1-implementation.md` (parts 1–4). Closes 12 acceptance-criteria artifacts from the [pipeline-review document](./docs/2026-04-28%20ai-scientist-codex-pipeline-review.md).
-
-The v2.0.0 Python orchestrator at `plugins/ai-scientist/mcp/lib/orchestrator/` (17 modules) gains:
-
-| New module (v2.1) | Responsibility |
-|---|---|
-| `cross_validator.py` | DOI gate (Crossref/DataCite) + cascade enrich (OpenAlex -> Semantic Scholar -> Consensus -> Anna's OA-only -> PubMed biomedical-only) + claim-support spot-check |
-| `source_accounting.py` | Per-source provenance ledger (`source_usage.json`) |
-| `article_type.py` | Auto-detect `review` / `experimental` / `benchmark` + per-type phase orders |
-| `preflight.py` | Toolchain + Codex runtime + memory-tool capability probes |
-| `resource_ledger.py` | External-request / spawn / long-call accounting + 80% budget gate |
-| `plotter_loop.py` | 3-cycle iterative plotter (inspect -> VLM critique -> polish), scripting + LaTeX-native paths |
-| `anti_llm_lint.py` | Tier 1-4 anti-LLMish blacklist + claim audit triggering ideation re-dispatch |
-| `dispatch/codex_native.py` | `spawn_agent` waves with slot-leak guard (GitHub issue #18335) |
-| `reviewer_ledger.py` | `reviewer_dispatch.json` builder (native_subagents \| inline_fallback) |
-
-Cross-host parity preserved: Codex-primary `spawn_agent` waves, Claude Code `Task` tool, Gemini inline reasoning -- same .md prompts and same artifact set.
-
-```
-plugins/ai-scientist/
-├── agents/                    # 16 dedicated subagents (each with claude / codex / gemini frontmatter blocks)
-├── skills/ai-scientist/
-│   ├── SKILL.md               # orchestrator (intent routing + dispatch + universal MemPalace contract)
-│   ├── domain-templates.md    # 6 domain configs (ml, optimization, statistical, mathematical, comp_bio, sw_eng)
-│   ├── academic-domains.md    # trusted publisher allowlist
-│   ├── search-queries.md      # 8-query strategy
-│   ├── routing-intents.md     # 12 named intents
-│   └── references/
-│       ├── codex-tools.md     # Task → spawn_agent, TodoWrite → update_plan, etc.
-│       └── gemini-tools.md    # Read → read_file, Skill → activate_skill, etc.
-├── commands/                  # 6 slash commands (Claude Code)
-├── mcp/
-│   ├── server.py              # plugin's core MCP (knowledge store, codebase analyzer, meta-analysis)
-│   ├── lib/                   # core MCP support modules
-│   ├── lib/sakana/            # canonical Sakana AI-Scientist Python (~10,200 LOC, 33 .py files)
-│   │   ├── llm.py + vlm.py
-│   │   ├── perform_*.py       # ideation, writeup, icbinb_writeup, llm_review, vlm_review, plotting
-│   │   ├── treesearch/        # BFTS (11 files, 5,335 LOC)
-│   │   ├── tools/             # semantic_scholar, base_tool
-│   │   └── bfts_config.yaml
-│   ├── scripts/               # migrate_jsonl_to_sqlite.py, index_chroma.py
-│   └── templates/             # latex/ + word/ + fewshot/ + ideas/
-├── hooks/                     # mempalace-recall.sh, mempalace-save.sh, hooks.json
-├── settings/                  # default-settings.json + settings.schema.json
-├── scripts/                   # install.ps1, install.sh, migrate-from-skill.ps1, rollback.ps1, verify.ps1
-├── tests/                     # 245 passing tests (static + routing + 100 orchestrator unit tests + per-host frontmatter)
-├── codex-config.toml.example  # copy-paste TOML for ~/.codex/config.toml
-├── gemini-extension.json      # Gemini CLI extension manifest
-└── .claude-plugin/            # Claude Code plugin manifest + marketplace
-```
-
-Plus at the repo root:
-
-- `.codex/INSTALL.md` — Codex CLI install guide
-- `.gemini/INSTALL.md` — Gemini CLI install guide
-- `docs/AGENT_INSTALL_PROMPTS.md` — copy-paste prompts for any agent to install the plugin
-- `docs/specs/` + `docs/plans/` — original design spec and implementation plan
-
-## Cross-host install summary
-
-| Host | One-liner |
-|---|---|
-| Claude Code | `/plugin marketplace add danilkotelnikov/ai-scientist-plugin && /plugin install ai-scientist@ai-scientist-plugin` |
-| Codex CLI | clone + symlink + `cat codex-config.toml.example >> ~/.codex/config.toml` (see `.codex/INSTALL.md`) |
-| Gemini CLI | `gemini extensions install https://github.com/danilkotelnikov/ai-scientist-plugin` |
-| LLM-driven | paste from `docs/AGENT_INSTALL_PROMPTS.md` to your agent |
+Full schema at [`plugins/vedix/settings/settings.schema.json`](plugins/vedix/settings/settings.schema.json).
 
 ## Tests
 
-Tests pass (static frontmatter checks for all 16 agents across all 3 hosts, routing fixtures, schema validation, MCP self-test, Tier 3 smoke runner).
-
 ```bash
-cd plugins/ai-scientist && python -m pytest tests/
-python plugins/ai-scientist/mcp/server.py --selftest
+cd plugins/vedix && python -m pytest tests/
+python plugins/vedix/mcp/server.py --selftest
 ```
 
-## Spec & plan
+The pytest suite covers per-host agent frontmatter, routing fixtures, the MCP self-test, the v2→v3 migration helper, and the orchestrator unit suite.
 
-- Original design: [`docs/specs/2026-04-25-ai-scientist-plugin-design.md`](docs/specs/2026-04-25-ai-scientist-plugin-design.md)
-- Original plan: [`docs/plans/2026-04-25-ai-scientist-plugin-implementation.md`](docs/plans/2026-04-25-ai-scientist-plugin-implementation.md)
-- **v2.0.0 orchestrator rewrite design**: [`docs/specs/2026-04-27-orchestrator-rewrite-design.md`](docs/specs/2026-04-27-orchestrator-rewrite-design.md)
-- **v2.0.0 orchestrator rewrite plan**: [`docs/plans/2026-04-27-orchestrator-rewrite-implementation.md`](docs/plans/2026-04-27-orchestrator-rewrite-implementation.md)
+## Manual install paths
+
+For each host, the bootstrap is the supported path. If it can't run in your environment, walk through the manual guides:
+
+- Claude Code — [docs/INSTALL_CLAUDE_CODE.md](docs/INSTALL_CLAUDE_CODE.md)
+- Codex CLI — [.codex/INSTALL.md](.codex/INSTALL.md)
+- Gemini CLI — [.gemini/INSTALL.md](.gemini/INSTALL.md)
+- LLM-driven — [docs/AGENT_INSTALL_PROMPTS.md](docs/AGENT_INSTALL_PROMPTS.md) (copy-paste prompts the agent follows)
 
 ## Credits
 
-- **Sakana AI's AI-Scientist** ([github.com/SakanaAI/AI-Scientist-v2](https://github.com/SakanaAI/AI-Scientist-v2), MIT) — canonical Python pipeline (BFTS, perform_writeup, perform_vlm_review, perform_llm_review, perform_plotting). Bundled at `mcp/lib/sakana/`.
-- **MemPalace** ([github.com/MemPalace/mempalace](https://github.com/MemPalace/mempalace), MIT) — per-project memory DB.
-- **drAbreu/alex-mcp** — OpenAlex MCP wrapper.
-- **JackKuo666/semanticscholar-MCP-Server** + **JackKuo666/bioRxiv-MCP-Server** — Semantic Scholar and bioRxiv MCP wrappers.
+- [Sakana AI's AI-Scientist-v2](https://github.com/SakanaAI/AI-Scientist-v2) (MIT) — the canonical Python pipeline (BFTS, `perform_writeup`, `perform_vlm_review`, `perform_llm_review`, `perform_plotting`) is bundled under `plugins/vedix/mcp/lib/sakana/`.
+- [MemPalace](https://github.com/MemPalace/mempalace) (MIT) — per-project memory DB.
+- [drAbreu/alex-mcp](https://github.com/drAbreu/alex-mcp), [JackKuo666/semanticscholar-MCP-Server](https://github.com/JackKuo666/semanticscholar-MCP-Server), [JackKuo666/bioRxiv-MCP-Server](https://github.com/JackKuo666/bioRxiv-MCP-Server) — MCP wrappers for OpenAlex, Semantic Scholar, and bioRxiv.
 
 ## License
 

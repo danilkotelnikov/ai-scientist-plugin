@@ -8,7 +8,7 @@
         "stdio"
       ],
       "env": {
-        "AI_SCIENTIST_HOME": "${env:HOME}/.ai-scientist",
+        "VEDIX_HOME": "${env:HOME}/.vedix",
         "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/mcp/lib"
       }
     },
@@ -16,7 +16,7 @@
       "command": "mempalace-mcp",
       "args": [],
       "env": {
-        "MEMPALACE_ROOT": "${env:HOME}/.ai-scientist/palace"
+        "MEMPALACE_ROOT": "${env:HOME}/.vedix/palace"
       }
     },
     "openalex": {
@@ -34,7 +34,7 @@
     "semanticscholar": {
       "command": "python",
       "args": [
-        "${env:HOME}/.ai-scientist/external/semanticscholar-MCP-Server/semantic_scholar_server.py"
+        "${env:HOME}/.vedix/external/semanticscholar-MCP-Server/semantic_scholar_server.py"
       ],
       "env": {
         "SEMANTIC_SCHOLAR_API_KEY": "${env:SEMANTIC_SCHOLAR_KEY}"
@@ -49,7 +49,7 @@
     "biorxiv": {
       "command": "python",
       "args": [
-        "${env:HOME}/.ai-scientist/external/bioRxiv-MCP-Server/biorxiv_server.py"
+        "${env:HOME}/.vedix/external/bioRxiv-MCP-Server/biorxiv_server.py"
       ]
     },
     "pubmed": {

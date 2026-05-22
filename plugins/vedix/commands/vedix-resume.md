@@ -1,5 +1,5 @@
 ---
-description: Resume a paused or failed AI-Scientist job from its last successful phase.
+description: Resume a paused or failed Vedix job from its last successful phase.
 argument-hint: "<job-id> [--from-phase <name>]"
 ---
 

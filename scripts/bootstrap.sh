@@ -124,7 +124,7 @@ run_with_timeout() {
 # ============================================================================
 
 echo
-printf "\033[35mAI-Scientist Plugin -- one-command bootstrap\033[0m\n"
+printf "\033[35mVedix -- one-command bootstrap\033[0m\n"
 echo
 
 # 1. Probe prerequisites

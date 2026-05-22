@@ -1,6 +1,6 @@
 {
   "plugins": {
-    "ai-scientist": {
+    "vedix": {
       "agents": {
         "ideator":             { "model": "opus",   "thinking_budget": 48000 },
         "codebase_scanner":    { "model": "sonnet", "thinking_budget": 8000 },
@@ -155,8 +155,8 @@
         "semantic_scholar_key": "${env:SEMANTIC_SCHOLAR_KEY}"
       },
       "storage": {
-        "knowledge_root": "~/.ai-scientist",
-        "default_output_root": "./ai-scientist-output",
+        "knowledge_root": "~/.vedix",
+        "default_output_root": "./vedix-output",
         "retain_completed_jobs_days": 90,
         "mempalace_path_template": "${output_dir}/.palace"
       },
@@ -185,7 +185,7 @@
       "superpowers": {
         "enabled": true,
         "auto_mine_plans": true,
-        "plugin_palace_root": "~/.ai-scientist/plugin-palace",
+        "plugin_palace_root": "~/.vedix/plugin-palace",
         "auto_recall_on_session_start": true,
         "wake_up_token_budget": 2000,
         "diary_writes_per_step": true

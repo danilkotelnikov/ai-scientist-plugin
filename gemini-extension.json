@@ -1,27 +1,27 @@
 {
   "name": "vedix",
   "version": "3.0.0",
-  "description": "Cross-host agentic research pipeline. 16 dedicated subagents with per-host model pinning (Gemini 3.1 Pro Preview for heavy roles + Gemini 3 Flash Preview for light), BFTS tree-search experiments, VLM figure review, slide generation, per-project MemPalace memory, and 9 pre-configured MCP servers. v2.0.0: Python orchestrator (mcp/lib/orchestrator/) drives all phases; SKILL.md is a thin intent router. Bundles canonical Sakana Python alongside lightweight host-native agents.",
+  "description": "End-to-end agentic research workbench. Turns a topic into a venue-ready manuscript across Claude Code, Codex CLI, and Gemini CLI. 17 specialized subagents, Source-Grounded Claim Architecture (SGCA), per-project MemPalace memory, 9 pre-configured MCP servers, 23 publisher templates, 7 first-class languages.",
   "contextFileName": "GEMINI.md",
   "settings": [
-    {"name": "OpenAlex email", "description": "Your contact email for OpenAlex polite-pool (required since 2026-02-13)", "envVar": "OPENALEX_EMAIL"},
-    {"name": "Semantic Scholar API key", "description": "Optional -- unlocks /search endpoint", "envVar": "SEMANTIC_SCHOLAR_KEY", "sensitive": true},
+    {"name": "OpenAlex email", "description": "Your contact email for the OpenAlex polite pool (required since 2026-02-13)", "envVar": "OPENALEX_EMAIL"},
+    {"name": "Semantic Scholar API key", "description": "Optional — unlocks /search endpoint", "envVar": "SEMANTIC_SCHOLAR_KEY", "sensitive": true},
     {"name": "Anna's Archive base URL", "description": "Mirror URL for Anna's Archive", "envVar": "ANNAS_BASE_URL"},
     {"name": "Anna's Archive download path", "description": "Local path for full-text PDF downloads", "envVar": "ANNAS_DOWNLOAD_PATH"},
     {"name": "Anna's Archive secret key", "description": "Member-tier access key", "envVar": "ANNAS_SECRET_KEY", "sensitive": true}
   ],
   "mcpServers": {
-    "ai-scientist": {
+    "vedix": {
       "command": "python",
       "args": [
-        "${extensionPath}/plugins/ai-scientist/mcp/server.py",
+        "${extensionPath}/plugins/vedix/mcp/server.py",
         "--mode",
         "stdio"
       ],
       "env": {
-        "PYTHONPATH": "${extensionPath}/plugins/ai-scientist/mcp/lib"
+        "PYTHONPATH": "${extensionPath}/plugins/vedix/mcp/lib"
       },
-      "cwd": "${extensionPath}/plugins/ai-scientist"
+      "cwd": "${extensionPath}/plugins/vedix"
     },
     "mempalace": {
       "command": "mempalace-mcp"
@@ -40,7 +40,7 @@
     "semanticscholar": {
       "command": "python",
       "args": [
-        "${extensionPath}/../../../.ai-scientist/external/semanticscholar-MCP-Server/semantic_scholar_server.py"
+        "${extensionPath}/../../../.vedix/external/semanticscholar-MCP-Server/semantic_scholar_server.py"
       ]
     },
     "arxiv": {
@@ -50,7 +50,7 @@
     "biorxiv": {
       "command": "python",
       "args": [
-        "${extensionPath}/../../../.ai-scientist/external/bioRxiv-MCP-Server/biorxiv_server.py"
+        "${extensionPath}/../../../.vedix/external/bioRxiv-MCP-Server/biorxiv_server.py"
       ]
     },
     "pubmed": {

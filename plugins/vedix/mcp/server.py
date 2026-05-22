@@ -1,5 +1,5 @@
 """
-AI-Scientist MCP Server Backend
+Vedix MCP Server Backend
 
 A proper MCP server that implements the Vedix tools:
 - start_research: Start a research job
@@ -896,7 +896,7 @@ def handle_request(request):
 
 def run_server():
     """Run the MCP server (stdio transport)."""
-    print("AI-Scientist MCP Server starting...", file=sys.stderr)
+    print("Vedix MCP Server starting...", file=sys.stderr)
 
     for line in sys.stdin:
         line = line.strip()
@@ -917,7 +917,7 @@ def run_server():
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="AI-Scientist MCP Server")
+    parser = argparse.ArgumentParser(description="Vedix MCP Server")
     parser.add_argument("--mode", choices=["stdio", "cli"], default="stdio",
                         help="Run mode: stdio for MCP, cli for direct testing")
     parser.add_argument("--command", help="CLI command to run")

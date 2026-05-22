@@ -1,5 +1,5 @@
 ---
-description: Search the AI-Scientist persistent knowledge store (papers, hypotheses, benchmarks, claims).
+description: Search the Vedix persistent knowledge store (papers, hypotheses, benchmarks, claims).
 argument-hint: "<search terms>"
 ---
 

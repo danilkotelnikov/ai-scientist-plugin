@@ -22,18 +22,15 @@ End-to-end setup from a fresh Claude Code session. Tested on Windows 11
 
 ```powershell
 mkdir "$HOME\.vedix" -Force
-git clone https://github.com/danilkotelnikov/ai-scientist-plugin "$HOME\.vedix\repo"
+git clone https://github.com/danilkotelnikov/vedix "$HOME\.vedix\repo"
 ```
 
 **Linux / macOS:**
 
 ```bash
 mkdir -p "$HOME/.vedix"
-git clone https://github.com/danilkotelnikov/ai-scientist-plugin "$HOME/.vedix/repo"
+git clone https://github.com/danilkotelnikov/vedix "$HOME/.vedix/repo"
 ```
-
-The repo is named `ai-scientist-plugin` historically; the plugin inside is
-called `vedix` (the rename completed in B1 of the v3.0 release).
 
 ## 2. Install Python dependencies
 
@@ -77,7 +74,7 @@ merge) the following `mcpServers` block.
         "stdio"
       ],
       "env": {
-        "AI_SCIENTIST_HOME": "${env:USERPROFILE}/.vedix",
+        "VEDIX_HOME": "${env:USERPROFILE}/.vedix",
         "PYTHONPATH": "${env:USERPROFILE}/.vedix/repo/plugins/vedix/mcp/lib"
       }
     },

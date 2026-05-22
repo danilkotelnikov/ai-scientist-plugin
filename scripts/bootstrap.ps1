@@ -134,7 +134,7 @@ function Prompt-HostSelection {
 # ============================================================================
 
 Write-Host ""
-Write-Host "AI-Scientist Plugin -- one-command bootstrap" -ForegroundColor Magenta
+Write-Host "Vedix -- one-command bootstrap" -ForegroundColor Magenta
 Write-Host ""
 
 # 1. Probe prerequisites

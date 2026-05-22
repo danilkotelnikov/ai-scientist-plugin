@@ -1,5 +1,5 @@
 ---
-description: Retrieve a section of a completed AI-Scientist job's output.
+description: Retrieve a section of a completed Vedix job's output.
 argument-hint: "<job-id> [section literature|hypothesis|manuscript|stats|all]"
 ---
 

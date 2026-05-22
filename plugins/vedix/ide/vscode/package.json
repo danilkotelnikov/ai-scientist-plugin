@@ -24,7 +24,8 @@
     "latex",
     "academic",
     "vedix",
-    "ai-scientist"
+    "sgca",
+    "agentic"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [

@@ -19,4 +19,8 @@ def test_plugin_renamed_to_vedix() -> None:
     )
     assert manifest["name"] == "vedix"  # pyright: ignore[reportAny]
     assert manifest["version"].startswith("3.0")  # pyright: ignore[reportAny]
-    assert "vedix" in manifest.get("commands", {})  # pyright: ignore[reportAny]
+    # Claude Code auto-discovers commands from commands/*.md when the manifest
+    # omits the `commands` field. Verify the discovery directory + the entry
+    # point command file exist on disk.
+    cmd_md = PLUGIN_DIR / "commands" / "vedix.md"
+    assert cmd_md.exists(), "commands/vedix.md must exist for slash-command discovery"
