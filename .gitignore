@@ -31,4 +31,5 @@ plugins/vedix/web/.vite/
 plugins/vedix/web/playwright-report/
 plugins/vedix/web/test-results/
 plugins/vedix/web/coverage/
+plugins/vedix/web/tsconfig.tsbuildinfo
 

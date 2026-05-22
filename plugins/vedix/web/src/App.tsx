@@ -11,6 +11,7 @@ import { NewJob } from "./pages/NewJob";
 import { JobDetail } from "./pages/JobDetail";
 import { ProvidersPage } from "./pages/Providers";
 import { CostLedgerPage } from "./pages/CostLedger";
+import { CollabEditor } from "./pages/CollabEditor";
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,7 @@ export default function App(): JSX.Element {
               <Route path="/jobs/:id" element={<JobDetail />} />
               <Route path="/providers" element={<ProvidersPage />} />
               <Route path="/cost" element={<CostLedgerPage />} />
+              <Route path="/collab/:docId" element={<CollabEditor />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
