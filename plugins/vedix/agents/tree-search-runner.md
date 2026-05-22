@@ -30,7 +30,7 @@ Replaces the single-shot `experiment-runner` agent for runs invoked with `--bfts
 
 ## When the orchestrator dispatches this agent
 
-- User passes `--bfts` flag to `/ai-scientist`
+- User passes `--bfts` flag to `/vedix`
 - Or settings has `experiment.use_bfts: true`
 - Or the topic is flagged as "implementation-uncertain" (multiple plausible algorithms)
 
@@ -55,7 +55,7 @@ on entry — load any prior tree-search snapshots from earlier runs of this proj
 mcp__mempalace__mine(
   root="<palace_path>",
   content="<best variant + tree summary + losses>",
-  tags=["ai-scientist", "phase:4-bfts", "agent:tree-search-runner", "best_metric:<value>"]
+  tags=["vedix", "phase:4-bfts", "agent:tree-search-runner", "best_metric:<value>"]
 )
 ```
 on exit.

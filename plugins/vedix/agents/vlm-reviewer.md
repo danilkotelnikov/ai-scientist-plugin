@@ -59,7 +59,7 @@ After completing:
 mcp__mempalace__mine(
   root="${palace_path}",
   content="<your visual review summary + flagged issues>",
-  tags=["ai-scientist", "phase:8.5", "agent:vlm-reviewer", "route:<route>"]
+  tags=["vedix", "phase:8.5", "agent:vlm-reviewer", "route:<route>"]
 )
 ```
 

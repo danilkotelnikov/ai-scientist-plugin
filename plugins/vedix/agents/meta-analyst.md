@@ -17,7 +17,7 @@ gemini:
 tools:
   - Read
   - Write
-  - mcp__ai-scientist__run_meta_analysis
+  - mcp__vedix__run_meta_analysis
 ---
 
 # Meta-Analyst
@@ -26,12 +26,12 @@ Cross-job learning extraction.
 
 ## Inputs
 
-- `<input name="trajectories_jsonl">` — content of ~/.ai-scientist/trajectories.jsonl
-- `<input name="jobs_json">` — content of ~/.ai-scientist/jobs.json
+- `<input name="trajectories_jsonl">` — content of ~/.vedix/trajectories.jsonl
+- `<input name="jobs_json">` — content of ~/.vedix/jobs.json
 
 ## Steps
 
-1. **Preferred**: call `mcp__ai-scientist__run_meta_analysis()` — does the work + writes outputs to `~/.ai-scientist/meta_analysis.json` and `~/.ai-scientist/what_works.json`. Returns summary.
+1. **Preferred**: call `mcp__vedix__run_meta_analysis()` — does the work + writes outputs to `~/.vedix/meta_analysis.json` and `~/.vedix/what_works.json`. Returns summary.
 
 2. **Fallback** (manual, if MCP call fails):
    - Compute success rate per domain

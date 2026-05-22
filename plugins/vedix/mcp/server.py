@@ -1,7 +1,7 @@
 """
 AI-Scientist MCP Server Backend
 
-A proper MCP server that implements the ai-scientist tools:
+A proper MCP server that implements the Vedix tools:
 - start_research: Start a research job
 - get_status: Poll job status
 - get_output: Retrieve job output
@@ -32,10 +32,11 @@ from knowledge_store import KnowledgeStore
 from meta_analyzer import MetaAnalyzer
 from codebase_analyzer import CodebaseAnalyzer
 
-# Runtime data root. Defaults to ~/.ai-scientist/ but is overridable via
-# AI_SCIENTIST_HOME env var (set by .mcp.json). This keeps user data alive
-# across plugin reinstalls.
-BASE_DIR = Path(os.environ.get("AI_SCIENTIST_HOME", str(Path.home() / ".ai-scientist")))
+# Runtime data root. Defaults to ~/.vedix/ but overridable via
+# VEDIX_HOME (preferred) or AI_SCIENTIST_HOME (legacy fallback for users
+# who haven't run scripts/migrate_v2_to_v3.py yet). The B1 migration
+# helper relocates ~/.ai-scientist/ → ~/.vedix/ on first v3.0 boot.
+BASE_DIR = Path(os.environ.get("VEDIX_HOME", os.environ.get("AI_SCIENTIST_HOME", str(Path.home() / ".vedix"))))
 BASE_DIR.mkdir(exist_ok=True)
 
 JOBS_FILE = BASE_DIR / "jobs.json"
@@ -101,7 +102,7 @@ def start_research(topic, codebase_context, domain_template, llm_backend="api", 
     template = TEMPLATES.get(domain_template, TEMPLATES["ml"])
 
     if not output_dir:
-        output_dir = str(Path.cwd() / "ai-scientist-output" / job_id)
+        output_dir = str(Path.cwd() / "vedix-output" / job_id)
 
     job = {
         "job_id": job_id,
@@ -329,7 +330,7 @@ def get_knowledge_stats():
 TOOL_DEFINITIONS = [
     {
         "name": "start_research",
-        "description": "Start a new ai-scientist research job.",
+        "description": "Start a new Vedix research job.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -365,7 +366,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "list_jobs",
-        "description": "List ai-scientist research jobs.",
+        "description": "List Vedix research jobs.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
@@ -384,7 +385,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "query_knowledge",
-        "description": "Search the ai-scientist knowledge store.",
+        "description": "Search the Vedix knowledge store.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -397,7 +398,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "query_knowledge_graph",
-        "description": "Query the ai-scientist temporal knowledge graph.",
+        "description": "Query the Vedix temporal knowledge graph.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -410,12 +411,12 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_knowledge_stats",
-        "description": "Get ai-scientist knowledge store statistics.",
+        "description": "Get Vedix knowledge store statistics.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "search_knowledge_index",
-        "description": "Search the persistent ai-scientist knowledge index.",
+        "description": "Search the persistent Vedix knowledge index.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -441,7 +442,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "analyze_codebase",
-        "description": "Analyze a local codebase for ai-scientist grounding.",
+        "description": "Analyze a local codebase for Vedix grounding.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -453,17 +454,17 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_meta_analysis",
-        "description": "Read ai-scientist meta-analysis results.",
+        "description": "Read Vedix meta-analysis results.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "get_what_works",
-        "description": "Read ai-scientist recommendations from prior jobs.",
+        "description": "Read Vedix recommendations from prior jobs.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "run_meta_analysis",
-        "description": "Run ai-scientist meta-analysis over stored jobs.",
+        "description": "Run Vedix meta-analysis over stored jobs.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {

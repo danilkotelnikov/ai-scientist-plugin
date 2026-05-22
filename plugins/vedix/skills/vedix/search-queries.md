@@ -21,7 +21,7 @@ Given the user's topic `<core>` (truncated to first 150 chars):
 
 ## Prior-success queries
 
-Before dispatching, the orchestrator reads `~/.ai-scientist/trajectories.jsonl` and extracts queries from previous successful runs on similar topics (EvolveR recall). These are appended to the 8 base queries, deduplicated.
+Before dispatching, the orchestrator reads `~/.vedix/trajectories.jsonl` and extracts queries from previous successful runs on similar topics (EvolveR recall). These are appended to the 8 base queries, deduplicated.
 
 ## Per-source query budget
 

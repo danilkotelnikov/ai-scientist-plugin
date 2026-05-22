@@ -25,13 +25,14 @@ ai-scientist-output/
 
 # Node / web build
 node_modules/
-plugins/vedix/web/node_modules/
-plugins/vedix/web/dist/
-plugins/vedix/web/.vite/
-plugins/vedix/web/playwright-report/
-plugins/vedix/web/test-results/
-plugins/vedix/web/coverage/
-plugins/vedix/web/tsconfig.tsbuildinfo
+
+# The B9 Web UI subtree was removed from the OSS release (commit 18f309a)
+# but local `npm install` artifacts can survive. Ignore the whole subtree
+# so untracked-file noise doesn't accumulate.
+plugins/vedix/web/
+
+# Pipeline outputs (when running from plugin dir, legacy v2.x name)
+vedix-output/
 
 # MkDocs build output
 docs/site/site/

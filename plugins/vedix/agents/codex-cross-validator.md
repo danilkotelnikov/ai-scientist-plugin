@@ -57,7 +57,7 @@ On exit:
 mcp__mempalace__mine(
   root="<palace_path>",
   content="Cross-validation of <phase_name>: <verdict>. Discrepancies: <list>.",
-  tags=["ai-scientist", "phase:<phase_name>", "agent:codex-cross-validator", "verdict:<verdict>"]
+  tags=["vedix", "phase:<phase_name>", "agent:codex-cross-validator", "verdict:<verdict>"]
 )
 ```
 

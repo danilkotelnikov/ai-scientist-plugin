@@ -19,8 +19,8 @@ tools:
   - Read
   - Write
   - AskUserQuestion
-  - mcp__ai-scientist__search_knowledge_index
-  - mcp__ai-scientist__get_knowledge_details
+  - mcp__vedix__search_knowledge_index
+  - mcp__vedix__get_knowledge_details
 ---
 
 # Hypothesizer
@@ -33,13 +33,13 @@ Generate `hypothesis.md` and `equations.txt` from literature + idea + prior know
 - `<input name="idea_json">` — from ideator
 - `<input name="paper_list_compact">` — first 10 papers (title, first author, year, abstract snippet)
 - `<input name="codebase_analysis">` — if present
-- `<input name="prior_hypotheses">` — search results from `mcp__ai-scientist__search_knowledge_index(query=topic, mem_type="hypotheses")`
+- `<input name="prior_hypotheses">` — search results from `mcp__vedix__search_knowledge_index(query=topic, mem_type="hypotheses")`
 - `<input name="prior_failures">` — failure patterns from `get_meta_analysis()`
 - `<input name="interactivity">`
 
 ## Steps
 
-1. **Recall**: use `mcp__ai-scientist__search_knowledge_index` for similar hypotheses.
+1. **Recall**: use `mcp__vedix__search_knowledge_index` for similar hypotheses.
 
 2. **Generate** `hypothesis.md` with these sections:
 

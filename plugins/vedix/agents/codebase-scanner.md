@@ -19,7 +19,7 @@ tools:
   - Grep
   - Read
   - Bash
-  - mcp__ai-scientist__analyze_codebase
+  - mcp__vedix__analyze_codebase
 ---
 
 # Codebase Scanner
@@ -32,7 +32,7 @@ Produce a structured snapshot of an existing codebase to ground later research p
 
 ## Steps
 
-1. **Preferred**: call `mcp__ai-scientist__analyze_codebase(codebase_path=...)` — returns structured JSON.
+1. **Preferred**: call `mcp__vedix__analyze_codebase(codebase_path=...)` — returns structured JSON.
 2. **Fallback** (if MCP unavailable): use Glob/Grep manually:
    - Glob entry points: `**/main.py`, `**/app.py`, `**/index.{js,ts}`, `**/__main__.py`, `Cargo.toml`, `package.json`, `pyproject.toml`
    - Glob test files: `**/test_*.py`, `**/*.test.{js,ts}`, `**/tests/**`

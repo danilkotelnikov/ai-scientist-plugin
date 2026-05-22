@@ -27,7 +27,7 @@ def normalize_doi(raw: str) -> str:
 def _crossref_resolve(doi: str, email: str, timeout: float = 10.0) -> Optional[dict]:
     """Polite-pool Crossref resolve. Returns message dict or None."""
     url = f"https://api.crossref.org/works/{doi}"
-    headers = {"User-Agent": f"ai-scientist-plugin/2.1 (mailto:{email})"}
+    headers = {"User-Agent": f"vedix/3.0 (mailto:{email})"}
     try:
         r = httpx.get(url, headers=headers, timeout=timeout,
                       params={"mailto": email})

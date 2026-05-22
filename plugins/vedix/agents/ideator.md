@@ -19,10 +19,10 @@ tools:
   - WebFetch
   - Read
   - AskUserQuestion
-  - mcp__ai-scientist__search_knowledge_index
-  - mcp__ai-scientist__get_knowledge_details
-  - mcp__ai-scientist__get_meta_analysis
-  - mcp__ai-scientist__get_what_works
+  - mcp__vedix__search_knowledge_index
+  - mcp__vedix__get_knowledge_details
+  - mcp__vedix__get_meta_analysis
+  - mcp__vedix__get_what_works
 ---
 
 # Ideator
@@ -39,7 +39,7 @@ You produce a single structured research idea grounded in prior knowledge and a 
 
 ## Steps
 
-1. **Recall**: call `mcp__ai-scientist__search_knowledge_index(query=topic, limit=10)`. Note prior hypothesis-similarity.
+1. **Recall**: call `mcp__vedix__search_knowledge_index(query=topic, limit=10)`. Note prior hypothesis-similarity.
 2. **Generate structured idea** with these exact fields:
    - `Name`: lowercase_underscored
    - `Title`: paper-style
