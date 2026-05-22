@@ -97,6 +97,44 @@ def _get_router():
     return _router
 
 
+# --------------------------------------------------------------------------- #
+# Host-native dispatcher injection.                                           #
+#                                                                             #
+# Per design — BYOK is the fallback path; the PRIMARY path is the agentic     #
+# CLI host's native subagent mechanism (Claude Code's Task tool, Codex's     #
+# spawn_agent, Gemini's inline reasoning). The MCP server (server.py) sets   #
+# `_host_dispatcher` at startup with a callable that takes (agent_type,      #
+# prompt, system, max_tokens) and returns a coroutine yielding a ChatResponse#
+# -shaped object. Standalone scripts (corpus prep, training, etc.) leave it  #
+# None and fall back to BYOK.                                                #
+# --------------------------------------------------------------------------- #
+_host_dispatcher = None  # type: ignore[assignment]
+
+
+def set_host_dispatcher(dispatcher_callable) -> None:
+    """Called by the MCP server at boot to inject the host-native dispatcher.
+
+    `dispatcher_callable` signature::
+
+        async def dispatch(
+            *,
+            agent_type: str,
+            prompt: str,
+            system: str | None = None,
+            max_tokens: int = 4096,
+        ) -> ChatResponse-shaped object
+    """
+    global _host_dispatcher
+    _host_dispatcher = dispatcher_callable
+
+
+def detect_host_native_available() -> bool:
+    """True if a host-native dispatcher has been injected (we're inside an
+    agentic CLI's MCP context). False when running standalone (CLI scripts,
+    SaaS, etc.)."""
+    return _host_dispatcher is not None
+
+
 async def dispatch_agent(
     *,
     agent_type: str,
@@ -105,12 +143,33 @@ async def dispatch_agent(
     model: str | None = None,
     max_tokens: int = 4096,
 ):
-    """Send a single prompt through the BYOK ProviderRouter.
+    """Dispatch an agent. Routes to host-native subagent first, BYOK fallback.
 
-    `agent_type` is used to look up per-agent-class overrides. If `model` is
-    not supplied we resolve to the default model of the first provider in the
-    configured chain.
+    Order:
+      1. Host-native (Claude Code Task tool / Codex spawn_agent / Gemini)
+         — when the MCP server has injected `_host_dispatcher` at boot.
+      2. BYOK ProviderRouter — when running standalone (corpus prep,
+         training scripts, SaaS, or any callsite without an agentic CLI
+         host wrapping the Python process).
+
+    `agent_type` is the agent class name (matches Claude Code's
+    `subagent_type` after the `vedix-` prefix; matches Codex's agent
+    name; etc.).
     """
+    # --- Path 1: host-native (Claude Code / Codex / Gemini) ---
+    if _host_dispatcher is not None:
+        try:
+            return await _host_dispatcher(
+                agent_type=agent_type,
+                prompt=prompt,
+                system=system,
+                max_tokens=max_tokens,
+            )
+        except Exception:
+            # Host-native failure (e.g. Task tool timeout) — fall through to BYOK.
+            pass
+
+    # --- Path 2: BYOK ProviderRouter ---
     from ..byok import factory as _byok_factory
     from ..byok.base import ChatRequest, Message
 
@@ -120,11 +179,20 @@ async def dispatch_agent(
     msgs.append(Message(role="user", content=prompt))
 
     if not model:
-        cfg = _json.loads(
-            (_byok_factory._byok_root() / "providers.json").read_text(encoding="utf-8")
-        )
-        first = cfg["chain"][0] if cfg.get("chain") else "anthropic"
-        model = _byok_factory.default_model(first)
+        try:
+            cfg = _json.loads(
+                (_byok_factory._byok_root() / "providers.json").read_text(encoding="utf-8")
+            )
+            first = cfg["chain"][0] if cfg.get("chain") else "anthropic"
+            model = _byok_factory.default_model(first)
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                "Cannot dispatch agent: no host-native dispatcher injected "
+                "(not running inside an agentic CLI) AND no BYOK provider "
+                "configured at ~/.vedix/byok/providers.json. Run "
+                "`vedix provider add <name> --api-key ...` to configure BYOK, "
+                "or launch this code from inside Claude Code / Codex / Gemini."
+            ) from e
 
     req = ChatRequest(messages=msgs, model=model, max_tokens=max_tokens)
     router = _get_router()
