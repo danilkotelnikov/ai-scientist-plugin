@@ -58,31 +58,62 @@ import httpx
 NATURE_ISSN = "0028-0836"
 USER_AGENT = "vedix/3.0 (research workbench)"
 
+# OpenAlex top-level (level=0) concept IDs covering the seven Nature niches.
+# https://docs.openalex.org/api-entities/concepts — the level-0 tree is small
+# enough to enumerate here.  Each (niche → concept-id) maps to a separate
+# corpus subdir at ~/.vedix/corpus/nature/<niche>/en/ so the prepare_corpus
+# pipeline can train per-niche register classifiers.
+NICHES: dict[str, str] = {
+    "chemistry":      "C185592680",
+    "physics":        "C121332964",
+    "biology":        "C86803240",
+    "medicine":       "C71924100",
+    "computer_science": "C41008148",
+    "materials":      "C192562407",
+    "earth":          "C127313418",  # Geology
+}
+
 
 async def fetch_openalex_nature_dois(
     *, target: int, candidates: int, email: str, from_year: int,
+    to_year: int | None = None,
+    concept_id: str | None = None,
     log: logging.Logger,
 ) -> list[dict]:
     """Query OpenAlex for top-cited Nature research articles in English.
 
-    Constrains to post-`from_year` Nature articles so PDFs are reliably
-    text-native (pre-2010 papers are often image-scanned, which pdfminer
-    can't read without OCR). Modern Nature register is the training
-    target anyway — Watts-Strogatz 1998 is a classic but its prose
-    conventions are 25 years stale.
+    Constrains to publication dates in ``[from_year, to_year]`` (defaults
+    to ``[from_year, now]`` if ``to_year`` is None). The
+    range is necessary because pre-2010 PDFs are often image-scanned
+    (pdfminer can't read them without OCR) and 2024-2026 captures the
+    current state-of-art register.
+
+    If ``concept_id`` is provided, restricts to works tagged with that
+    OpenAlex concept (one of the level-0 Nature niches in :data:`NICHES`).
     """
+    filter_parts = [
+        f"primary_location.source.issn:{NATURE_ISSN}",
+        "type:article",
+        "language:en",
+        f"from_publication_date:{from_year}-01-01",
+    ]
+    if to_year is not None:
+        filter_parts.append(f"to_publication_date:{to_year}-12-31")
+    if concept_id is not None:
+        filter_parts.append(f"concepts.id:{concept_id}")
+
     params = {
-        "filter": (
-            f"primary_location.source.issn:{NATURE_ISSN},type:article,"
-            f"language:en,from_publication_date:{from_year}-01-01"
-        ),
+        "filter": ",".join(filter_parts),
         "per_page": min(candidates, 200),
         "sort": "cited_by_count:desc",
         "mailto": email,
     }
     log.info(
-        "OpenAlex query: ISSN=%s type=article lang=en sort=cited:desc candidates=%d (will download up to %d)",
-        NATURE_ISSN, candidates, target,
+        "OpenAlex query: ISSN=%s type=article lang=en from=%s%s%s candidates=%d (will download up to %d)",
+        NATURE_ISSN, from_year,
+        f" to={to_year}" if to_year else "",
+        f" concept={concept_id}" if concept_id else "",
+        candidates, target,
     )
     async with httpx.AsyncClient(
         timeout=60, follow_redirects=True,
@@ -279,16 +310,28 @@ async def main_async(args, log: logging.Logger) -> int:
     if not base_url.startswith(("http://", "https://")):
         base_url = f"https://{base_url}"
 
-    out_root = Path(os.path.expanduser("~/.vedix/corpus/nature/en"))
+    # Output goes to ~/.vedix/corpus/nature/<niche>/en/ when --niche is set,
+    # else ~/.vedix/corpus/nature/en/ (back-compat with pre-niche runs).
+    niche = args.niche
+    if niche and niche not in NICHES:
+        log.error("unknown niche %r; choose from: %s", niche, ", ".join(sorted(NICHES)))
+        return 1
+    concept_id = NICHES[niche] if niche else None
+    out_root = Path(os.path.expanduser(
+        f"~/.vedix/corpus/nature/{niche}/en" if niche else "~/.vedix/corpus/nature/en"
+    ))
     pdf_dir = out_root / "pdf"
     text_dir = out_root / "text"
     out_root.mkdir(parents=True, exist_ok=True)
 
     log.info("=== Stage 1: OpenAlex Nature discovery ===")
+    if niche:
+        log.info("niche=%s → concept_id=%s output=%s", niche, concept_id, out_root)
     candidates = max(args.candidates, args.target_count)
     works = await fetch_openalex_nature_dois(
         target=args.target_count, candidates=candidates, email=email,
-        from_year=args.from_year, log=log,
+        from_year=args.from_year, to_year=args.to_year, concept_id=concept_id,
+        log=log,
     )
     if not works:
         log.error("OpenAlex returned 0 Nature works — check OPENALEX_EMAIL + connectivity")
@@ -388,12 +431,21 @@ async def main_async(args, log: logging.Logger) -> int:
 def main():
     ap = argparse.ArgumentParser(description="Scrape state-of-art Nature papers for the Vedix register corpus.")
     ap.add_argument("--target-count", type=int, default=10,
-                    help="How many Nature PDFs to actually download (≤ Anna's daily quota of 100).")
+                    help="How many Nature PDFs to actually download (<= Anna's daily quota of 100).")
     ap.add_argument("--candidates", type=int, default=0,
-                    help="How many OpenAlex Nature DOIs to fetch (default: 1.5× target).")
-    ap.add_argument("--from-year", type=int, default=2015,
-                    help="Earliest publication year (default 2015 — older PDFs are often image-scanned, "
-                         "which pdfminer can't read).")
+                    help="How many OpenAlex Nature DOIs to fetch (default: 1.5x target).")
+    ap.add_argument("--from-year", type=int, default=2024,
+                    help="Earliest publication year (default 2024 -- captures state-of-art register).")
+    ap.add_argument("--to-year", type=int, default=2026,
+                    help="Latest publication year (default 2026).")
+    ap.add_argument("--niche", type=str, default=None,
+                    choices=sorted(NICHES.keys()),
+                    help="Restrict to one OpenAlex top-level concept; output goes to "
+                         "~/.vedix/corpus/nature/<niche>/en/. Omit for niche-agnostic capture.")
+    ap.add_argument("--all-niches", action="store_true",
+                    help="Run the scrape once per niche sequentially (chemistry, physics, "
+                         "biology, medicine, computer_science, materials, earth). Respects "
+                         "Anna's daily quota -- split across days if target * 7 > quota.")
     ap.add_argument("-v", "--verbose", action="count", default=0,
                     help="-v INFO, -vv DEBUG")
     args = ap.parse_args()
@@ -412,6 +464,27 @@ def main():
         datefmt="%H:%M:%S",
     )
     log = logging.getLogger("vedix.nature")
+
+    # --all-niches loops over every niche, calling main_async once per
+    # niche so each gets its own output dir. Helpful when you have a
+    # full day's quota to burn and want a balanced per-niche corpus.
+    if args.all_niches:
+        exit_codes: list[int] = []
+        original_niche = args.niche
+        for n in sorted(NICHES.keys()):
+            args.niche = n
+            log.info("============================================================")
+            log.info("=== Niche %s — target %d papers", n, args.target_count)
+            log.info("============================================================")
+            try:
+                rc = asyncio.run(main_async(args, log))
+            except Exception as exc:  # noqa: BLE001
+                log.error("niche %s failed: %s", n, exc)
+                rc = 1
+            exit_codes.append(rc)
+        args.niche = original_niche
+        sys.exit(max(exit_codes) if exit_codes else 0)
+
     sys.exit(asyncio.run(main_async(args, log)))
 
 
