@@ -251,6 +251,23 @@ async def fetch_annas_signed_url(
     return data["download_url"], quota
 
 
+def _signed_url_matches_doi(signed_url: str, expected_doi: str) -> bool:
+    """Sanity-check that the signed download URL actually points at the
+    requested DOI's PDF.
+
+    Anna's Archive sometimes returns a valid signed URL whose underlying
+    file belongs to a DIFFERENT paper (same author, similar title) — a
+    known indexing bug for newly-added papers (2024+ Nature submissions).
+    The signed URL embeds the DOI in its path; we extract it and compare.
+    """
+    # Pattern: /scimag/.../10.XXXX/yyyy-zzz.pdf~/...  → extract '10.XXXX/yyyy-zzz'
+    m = re.search(r"/(10\.\d{4,9}/[^/.~]+(?:[.-][^/.~]+)*)\.pdf~", signed_url)
+    if not m:
+        return True  # No DOI in URL — can't validate, fail open
+    url_doi = m.group(1).lower()
+    return url_doi == expected_doi.lower()
+
+
 async def stream_pdf(
     url: str, dest: Path, *, client: httpx.AsyncClient, log: logging.Logger,
 ) -> bool:
@@ -383,6 +400,16 @@ async def main_async(args, log: logging.Logger) -> int:
                     quota.get("downloads_per_day"),
                 )
             if not signed_url:
+                continue
+            # Anna's sometimes returns a signed URL whose file belongs to
+            # a different DOI than we asked for (known indexing bug for
+            # newly-added 2024+ papers). Detect and skip before streaming.
+            if not _signed_url_matches_doi(signed_url, w["doi"]):
+                m = re.search(r"/(10\.\d{4,9}/[^/.~]+)\.pdf~", signed_url)
+                log.warning(
+                    "  doi mismatch: expected %s but signed URL is for %s — skipping",
+                    w["doi"], m.group(1) if m else "<unknown>",
+                )
                 continue
             if await stream_pdf(signed_url, dest_pdf, client=client, log=log):
                 log.info("  ok → %s (%dKB)", dest_pdf.name, dest_pdf.stat().st_size // 1024)
