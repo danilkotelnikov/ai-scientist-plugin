@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# install.sh — one-time setup for ai-scientist plugin (Linux / macOS).
+# install.sh — one-time setup for the vedix plugin (Linux / macOS).
 # Mirrors install.ps1 for Codex / non-Windows hosts.
 
 set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-AI_HOME="${AI_SCIENTIST_HOME:-$HOME/.ai-scientist}"
+VEDIX_HOME="${VEDIX_HOME:-${AI_SCIENTIST_HOME:-$HOME/.vedix}}"
 
-echo -e "\033[36mAI-Scientist plugin install starting...\033[0m"
+echo -e "\033[36mVedix plugin install starting...\033[0m"
 
 # 1. Probe Python
 if ! command -v python3 >/dev/null 2>&1; then
@@ -25,22 +25,22 @@ for bin in pandoc soffice pdflatex pdftoppm; do
     fi
 done
 
-# 6. Ensure ~/.ai-scientist/ exists
-mkdir -p "$AI_HOME"
-echo "  AI_SCIENTIST_HOME = $AI_HOME"
+# 6. Ensure ~/.vedix/ exists
+mkdir -p "$VEDIX_HOME"
+echo "  VEDIX_HOME = $VEDIX_HOME"
 
-# 7. Pip-install AI-Scientist core MCP deps
-echo -e "\033[36mInstalling AI-Scientist MCP requirements...\033[0m"
+# 7. Pip-install Vedix core MCP deps
+echo -e "\033[36mInstalling Vedix MCP requirements...\033[0m"
 python3 -m pip install --user -r "$PLUGIN_ROOT/mcp/requirements.txt"
 
 # 7-bis. MemPalace
 echo -e "\033[36mInstalling MemPalace...\033[0m"
 python3 -m pip install --user mempalace
-mkdir -p "$AI_HOME/palace"
+mkdir -p "$VEDIX_HOME/palace"
 if command -v mempalace >/dev/null 2>&1; then
-    mempalace init "$AI_HOME/palace" 2>/dev/null || true
+    mempalace init "$VEDIX_HOME/palace" 2>/dev/null || true
     echo "  mempalace: $(command -v mempalace)"
-    echo "  Per-project palace root: $AI_HOME/palace"
+    echo "  Per-project palace root: $VEDIX_HOME/palace"
 else
     echo "  WARNING: mempalace command not on PATH after install. Add ~/.local/bin to PATH or restart shell."
 fi
@@ -52,14 +52,14 @@ else
     echo "  uvx: $(command -v uvx)"
 fi
 
-# 7d. Clone the cloned-MCPs (Semantic Scholar, bioRxiv)
-mkdir -p "$AI_HOME/external"
+# 7d. Clone the cloned-MCPs (Semantic Scholar, bioRxiv, Sci-Hub)
+mkdir -p "$VEDIX_HOME/external"
 
 install_git_mcp() {
     local url="$1"
     local dirname="$2"
     local entry="$3"
-    local target="$AI_HOME/external/$dirname"
+    local target="$VEDIX_HOME/external/$dirname"
     if [ ! -d "$target" ]; then
         echo "  Cloning $url..."
         git clone --depth=1 "$url" "$target" 2>&1 | tail -2
@@ -80,6 +80,14 @@ install_git_mcp "https://github.com/JackKuo666/semanticscholar-MCP-Server.git" \
     "semanticscholar-MCP-Server" "semantic_scholar_server.py"
 install_git_mcp "https://github.com/JackKuo666/bioRxiv-MCP-Server.git" \
     "bioRxiv-MCP-Server" "biorxiv_server.py"
+install_git_mcp "https://github.com/JackKuo666/Sci-Hub-MCP-Server.git" \
+    "Sci-Hub-MCP-Server" "sci_hub_server.py"
+
+# Patch the Sci-Hub MCP's mirror list. Upstream's AVAILABLE_SCIHUB_BASE_URL
+# contains expired mirrors (sci-hub.tw / .is / .mn); we override with a
+# live list. Idempotent: re-running detects the patch marker and exits.
+python3 "$PLUGIN_ROOT/scripts/patch_scihub_mirrors.py" || \
+    echo "  WARNING: patch_scihub_mirrors.py failed (Sci-Hub fetches will use upstream's dead mirror list)"
 
 # 7e. Env-var reminders
 [ -z "${OPENALEX_EMAIL:-}" ] && echo "  WARNING: OPENALEX_EMAIL unset. Polite-pool throttle (1 req/s) will apply."
@@ -90,14 +98,14 @@ echo -e "\033[36mRunning MCP self-test...\033[0m"
 python3 "$PLUGIN_ROOT/mcp/server.py" --selftest
 
 # 9. Knowledge DB stats
-DB_PATH="$AI_HOME/knowledge.db"
+DB_PATH="$VEDIX_HOME/knowledge.db"
 [ -f "$DB_PATH" ] && echo "  knowledge.db: $(stat -c%s "$DB_PATH" 2>/dev/null || stat -f%z "$DB_PATH") bytes"
 
 echo ""
 echo -e "\033[32mInstall complete.\033[0m"
 echo ""
 echo "Codex next steps:"
-echo "  1. ln -s $PLUGIN_ROOT/skills/ai-scientist ~/.agents/skills/ai-scientist"
-echo "  2. ln -s $PLUGIN_ROOT/agents              ~/.agents/agents/ai-scientist"
-echo "  3. Append plugins/ai-scientist/codex-config.toml.example to ~/.codex/config.toml"
+echo "  1. ln -s $PLUGIN_ROOT/skills/vedix ~/.agents/skills/vedix"
+echo "  2. ln -s $PLUGIN_ROOT/agents       ~/.agents/agents/vedix"
+echo "  3. Append plugins/vedix/codex-config.toml.example to ~/.codex/config.toml"
 echo "  4. codex restart"

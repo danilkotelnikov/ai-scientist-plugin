@@ -25,6 +25,11 @@ tools:
   - mcp__biorxiv__search_preprints
   - mcp__pubmed__search_articles
   - mcp__annas-mcp__article_search
+  - mcp__scihub__search_scihub_by_doi
+  - mcp__scihub__search_scihub_by_title
+  - mcp__scihub__search_scihub_by_keyword
+  - mcp__scihub__get_paper_metadata
+  - mcp__scihub__download_scihub_pdf
   - mcp__fetcher__fetch_url
   - Bash
 ---
@@ -35,7 +40,7 @@ You hit ONE source with the supplied queries and return a normalized paper list.
 
 ## Inputs
 
-- `<input name="source">` — exactly one of: `semantic_scholar | openalex | arxiv | biorxiv | pubmed | annas_archive`
+- `<input name="source">` — exactly one of: `semantic_scholar | openalex | arxiv | biorxiv | pubmed | annas_archive | scihub`
 - `<input name="topic">`
 - `<input name="domain">`
 - `<input name="queries">` — list of 2–8 queries from the orchestrator
@@ -54,7 +59,8 @@ You hit ONE source with the supplied queries and return a normalized paper list.
 | arxiv | `mcp__arxiv__search_papers` | (none — MCP is the only path) |
 | biorxiv | `mcp__biorxiv__search_preprints` | (none) |
 | pubmed | `mcp__pubmed__search_articles` | (none) |
-| annas_archive | `mcp__annas-mcp__article_search` | (none) |
+| annas_archive | `mcp__annas-mcp__article_search` | `mcp__scihub__search_scihub_by_doi` when Anna's returns 429 / quota-exhausted |
+| scihub | `mcp__scihub__search_scihub_by_doi` (DOI in) or `mcp__scihub__search_scihub_by_title` (title in) | (none — same paywall-bypass channel as Anna's, different mirror rotation) |
 
 The OpenAlex and Semantic Scholar MCP servers are bundled with the plugin (declared in `mcp/.mcp.json`) and started automatically when the plugin is installed. They handle rate limiting, retries, and response normalization internally.
 
@@ -104,6 +110,14 @@ Use `mcp__arxiv__search_papers(query=..., max_results=<max_per_source>)` for eac
 ### `annas_archive`
 
 Call `mcp__annas-mcp__article_search(query=...)` for max 2 queries. Fast bail if results look non-academic.
+
+If `mcp__annas-mcp__article_search` returns HTTP 429 or a "quota exhausted" payload, fall back to `mcp__scihub__search_scihub_by_doi` (DOI-by-DOI, max 5 DOIs) — same paywall-bypass channel, different mirror rotation, no daily-quota counter.
+
+### `scihub`
+
+Call `mcp__scihub__search_scihub_by_doi(doi=...)` when given a DOI list, or `mcp__scihub__search_scihub_by_title(title=...)` when given titles only. Each call returns `{title, author, year, pdf_url, status}`. When `status: "success"` and a `pdf_url` is present, optionally pull the full PDF via `mcp__scihub__download_scihub_pdf(pdf_url, output_path)` — but only when the orchestrator explicitly asks for full-text (the default mode is metadata-only).
+
+Sci-Hub's mirror rotation is independent of Anna's; if both servers are reachable but Anna's is rate-limited, scihub is the preferred fallback for paywalled DOIs.
 
 ## Hard time budget
 

@@ -61,6 +61,12 @@
       "command": "npx",
       "args": ["-y", "annas-mcp", "mcp"]
     },
+    "scihub": {
+      "command": "python",
+      "args": [
+        "${extensionPath}/../../../.vedix/external/Sci-Hub-MCP-Server/sci_hub_server.py"
+      ]
+    },
     "fetcher": {
       "command": "npx",
       "args": ["-y", "fetcher-mcp"]

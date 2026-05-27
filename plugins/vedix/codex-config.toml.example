@@ -125,6 +125,16 @@ command = "npx"
 args = ["-y", "annas-mcp", "mcp"]
 env_vars = ["ANNAS_BASE_URL", "ANNAS_DOWNLOAD_PATH", "ANNAS_SECRET_KEY"]
 
+# Sci-Hub (JackKuo666/Sci-Hub-MCP-Server, cloned at install time).
+# Provides search_scihub_by_doi / search_scihub_by_title /
+# search_scihub_by_keyword / download_scihub_pdf / get_paper_metadata.
+# Complements Anna's: different mirror rotation, no fast-download quota,
+# different rate-limit behavior. The literature-searcher tries scihub
+# when annas returns 429 or quota-exhausted.
+[mcp_servers.scihub]
+command = "python"
+args = ["${env:USERPROFILE}/.vedix/external/Sci-Hub-MCP-Server/sci_hub_server.py"]
+
 # Consensus — AI-curated academic search.
 # Consensus does not currently ship an open MCP server. The literature-searcher
 # falls back to https://consensus.app/papers/?q=<query> via the fetcher MCP.

@@ -72,6 +72,12 @@
         "ANNAS_SECRET_KEY": "${env:ANNAS_SECRET_KEY}"
       }
     },
+    "scihub": {
+      "command": "python",
+      "args": [
+        "${env:HOME}/.vedix/external/Sci-Hub-MCP-Server/sci_hub_server.py"
+      ]
+    },
     "fetcher": {
       "command": "npx",
       "args": [

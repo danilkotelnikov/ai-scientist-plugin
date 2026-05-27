@@ -1,5 +1,5 @@
-# install.ps1 -- one-time setup for ai-scientist plugin
-# Pure ASCII so non-UTF-8 Windows PowerShell sessions (e.g. cp1251) parse it correctly.
+# install.ps1 -- one-time setup for vedix plugin (Windows).
+# Pure ASCII so non-UTF-8 PowerShell sessions (e.g. cp1251) parse it correctly.
 $ErrorActionPreference = "Stop"
 $PluginRoot = Split-Path -Parent $PSScriptRoot
 
@@ -30,7 +30,7 @@ function Invoke-Native {
     }
 }
 
-Write-Host "AI-Scientist plugin install starting..." -ForegroundColor Cyan
+Write-Host "Vedix plugin install starting..." -ForegroundColor Cyan
 
 # 1. Probe Python
 $python = Get-Command python -ErrorAction SilentlyContinue
@@ -75,13 +75,15 @@ if (-not $pdftoppm) {
     Write-Warning "  Install poppler: winget install --id oschwartz10612.Poppler"
 }
 
-# 6. Ensure ~/.ai-scientist/ exists
-$aiHome = "$env:USERPROFILE\.ai-scientist"
-if (-not (Test-Path $aiHome)) {
-    New-Item -ItemType Directory -Path $aiHome | Out-Null
-    Write-Host "  Created $aiHome"
+# 6. Ensure ~/.vedix/ exists (VEDIX_HOME preferred; legacy AI_SCIENTIST_HOME respected)
+$vedixHome = if ($env:VEDIX_HOME) { $env:VEDIX_HOME } `
+             elseif ($env:AI_SCIENTIST_HOME) { $env:AI_SCIENTIST_HOME } `
+             else { "$env:USERPROFILE\.vedix" }
+if (-not (Test-Path $vedixHome)) {
+    New-Item -ItemType Directory -Path $vedixHome | Out-Null
+    Write-Host "  Created $vedixHome"
 } else {
-    Write-Host "  Found existing $aiHome"
+    Write-Host "  Found existing $vedixHome"
 }
 
 # 7. Pip-install MCP dependencies (user-site)
@@ -97,7 +99,7 @@ Invoke-Native -Description "pip install mempalace" -Script {
     python -m pip install --user --quiet mempalace
 }
 Write-Host "  mempalace package OK"
-$mempalacePath = "$env:USERPROFILE\.ai-scientist\palace"
+$mempalacePath = "$vedixHome\palace"
 if (-not (Test-Path $mempalacePath)) {
     New-Item -ItemType Directory -Path $mempalacePath -Force | Out-Null
 }
@@ -127,7 +129,7 @@ if (-not $uvx) {
 # Clone helper
 function Install-GitMcp {
     param([string]$RepoUrl, [string]$DirName, [string]$EntryFile)
-    $target = "$aiHome\external\$DirName"
+    $target = "$vedixHome\external\$DirName"
     if (-not (Test-Path $target)) {
         Write-Host "  Cloning $RepoUrl..."
         Invoke-Native -Description "git clone $RepoUrl" -Script {
@@ -148,9 +150,9 @@ function Install-GitMcp {
     Write-Host "  $DirName deps installed"
 }
 
-# Ensure ~/.ai-scientist/external/ exists
-if (-not (Test-Path "$aiHome\external")) {
-    New-Item -ItemType Directory -Path "$aiHome\external" | Out-Null
+# Ensure ~/.vedix/external/ exists
+if (-not (Test-Path "$vedixHome\external")) {
+    New-Item -ItemType Directory -Path "$vedixHome\external" | Out-Null
 }
 
 # Semantic Scholar MCP
@@ -164,6 +166,20 @@ Install-GitMcp `
     -RepoUrl "https://github.com/JackKuo666/bioRxiv-MCP-Server.git" `
     -DirName "bioRxiv-MCP-Server" `
     -EntryFile "biorxiv_server.py"
+
+# Sci-Hub MCP -- complements Anna's Archive for paywalled-content fetching.
+# Different mirror rotation, no fast-download quota, different rate-limit
+# behavior. The literature-searcher tries scihub when annas returns 429.
+Install-GitMcp `
+    -RepoUrl "https://github.com/JackKuo666/Sci-Hub-MCP-Server.git" `
+    -DirName "Sci-Hub-MCP-Server" `
+    -EntryFile "sci_hub_server.py"
+
+# Patch Sci-Hub MCP's mirror list. Upstream ships dead mirrors; override
+# with live ones. Idempotent via patch-marker check.
+Invoke-Native -IgnoreExitCode -Description "patch scihub mirrors" -Script {
+    python "$PluginRoot\scripts\patch_scihub_mirrors.py" 2>&1
+}
 
 # Reminder about required env vars for the literature MCPs
 if (-not $env:OPENALEX_EMAIL) {
@@ -196,7 +212,7 @@ try {
 Write-Host "  $selftest"
 
 # 9. Knowledge DB stats
-$dbPath = "$aiHome\knowledge.db"
+$dbPath = "$vedixHome\knowledge.db"
 if (Test-Path $dbPath) {
     $size = [math]::Round((Get-Item $dbPath).Length / 1KB, 1)
     Write-Host "  knowledge.db: $size KB"
@@ -204,6 +220,6 @@ if (Test-Path $dbPath) {
 
 Write-Host ""
 Write-Host "Install complete." -ForegroundColor Green
-Write-Host "Next: run scripts\migrate-from-skill.ps1 to archive the old skill, then add the marketplace:"
-Write-Host "  /plugin marketplace add danilkotelnikov/ai-scientist-plugin"
-Write-Host "  /plugin install ai-scientist@ai-scientist-plugin"
+Write-Host "Next: add the marketplace and install the plugin:"
+Write-Host "  /plugin marketplace add danilkotelnikov/vedix"
+Write-Host "  /plugin install vedix@vedix"
