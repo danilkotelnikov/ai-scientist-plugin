@@ -31,7 +31,7 @@ def test_claude_code_dispatcher_calls_task_tool():
     d.dispatch(agent_name="ideator", inputs={"topic": "X"})
     fake_task_tool.assert_called_once()
     call = fake_task_tool.call_args
-    assert "ai-scientist-ideator" in str(call)
+    assert "vedix-ideator" in str(call)
 
 
 def test_codex_dispatcher_calls_spawn_agent():

@@ -59,6 +59,8 @@ Two modes: textual peer-review and visual-rendered-page validation. Selected by 
    - Figures referenced in text exist
    - No fabricated data points
    - Experiment results honestly reported (including failures)
+   - **Citation integrity check** — read the source-ledger artifact at `<output_dir>/source_usage.json` (emitted by `corpus_acquisition.CorpusAcquisitionPipeline` during the citator phase). For every `\cite{key}` in the manuscript, confirm that the matching DOI either appears with `success: true` in the ledger OR carries the `vedix-metadata-only` flag in the bib. Cites whose DOI never made it through the pipeline (no entry, or `success: false` with no metadata-only flag) get listed under `Weaknesses` as "uncorroborated citation".
+   - **KG-anchor check** (when `<output_dir>/.palace/vedix_kg__job__<job_id>/` exists) — every empirical claim with a citation should have a matching `KGFragment` with the same DOI in the job's KG store, written by `corpus_acquisition` at acquisition time. Claims whose anchor paper isn't in the KG are also "uncorroborated".
 
 4. Generate `Actionable_Fixes`: top 3 specific, surgical fixes.
 

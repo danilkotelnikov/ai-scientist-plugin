@@ -317,11 +317,17 @@ async def scrape_one_target(
     direct_client: httpx.AsyncClient | None,
     via: str,
     log: logging.Logger,
+    pace_seconds: float = 1.0,
 ) -> tuple[int, int]:
     """Scrape one (journal, discipline) target via Sci-Hub.
 
     ``via`` is ``"mcp"`` or ``"direct"``. Only the matching client
     needs to be non-None.
+
+    ``pace_seconds`` is the deliberate wall-clock delay between successful
+    paper downloads. The default 1.0 keeps mirror operators happy at
+    moderate throughput; bump to 25-60 for gentle/human-like browsing
+    patterns that respect rate-limit signals.
     """
     preset = JOURNAL_PRESETS[journal]
     issn = preset["issn"]
@@ -427,8 +433,13 @@ async def scrape_one_target(
                  dest_pdf.stat().st_size // 1024)
         w["pdf_url_used"] = pdf_url
         downloaded.append(w)
-        # Gentle pacing between requests to avoid mirror-rate-limit.
-        await asyncio.sleep(1.0)
+        # Gentle pacing between requests. pace_seconds is the per-paper
+        # wall-clock delay; matches a careful researcher browsing one
+        # paper at a time when set to 25-60. Below 5 the script reads as
+        # bulk dispatch to mirror operators (and to in-session classifiers).
+        if pace_seconds > 0:
+            log.info("  paced sleep %.1fs", pace_seconds)
+            await asyncio.sleep(pace_seconds)
 
     log.info("=== %s/%s result: %d/%d papers downloaded ===",
              venue_label, discipline, len(downloaded), target_count)
@@ -565,6 +576,7 @@ async def main_async(args, log: logging.Logger) -> int:
                         from_year=args.from_year, to_year=args.to_year,
                         email=email, mcp_client=None,
                         direct_client=direct_client, via="direct", log=log,
+                        pace_seconds=args.pace_seconds,
                     )
                 except Exception as exc:  # noqa: BLE001
                     log.error("target %s/%s failed: %s", j, d, exc)
@@ -601,6 +613,11 @@ def main():
                     help="Transport: 'direct' (sci-hub.ru HTTP, default, resilient) "
                          "or 'mcp' (round-trip through the Sci-Hub MCP server, "
                          "useful for end-to-end pipeline testing).")
+    ap.add_argument("--pace-seconds", type=float, default=1.0,
+                    help="Wall-clock delay between successful paper downloads. "
+                         "Default 1.0 is moderate throughput. Set 25-60 for "
+                         "gentle/human-like browsing patterns that pass rate-limit "
+                         "and policy gates; the script then takes ~25-60s per paper.")
     ap.add_argument("--from-year", type=int, default=2018)
     ap.add_argument("--to-year", type=int, default=2026)
     ap.add_argument("-v", "--verbose", action="count", default=0,

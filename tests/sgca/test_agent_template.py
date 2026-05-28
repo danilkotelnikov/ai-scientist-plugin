@@ -6,7 +6,10 @@ def test_paper_extractor_template_exists_and_has_frontmatter():
     p = Path("plugins/vedix/agents/paper-extractor.md")
     assert p.exists()
     content = p.read_text(encoding="utf-8")
-    assert "name: paper-extractor" in content
+    # Frontmatter name uses the vedix-* slug for host subagent dispatch
+    # (Task(subagent_type="vedix-paper-extractor")); the agent_class
+    # field keeps the bare orchestrator-side class identifier.
+    assert "name: vedix-paper-extractor" in content
     assert "agent_class: paper-extractor" in content
 
 

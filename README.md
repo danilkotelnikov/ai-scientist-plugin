@@ -113,6 +113,33 @@ Each manuscript sentence carries an entry in `sgca/sentence_ledger.jsonl`:
 
 Any sentence that fails verification triggers a re-write before the manuscript exits its stage gate. The same ledger drives the post-experiment numerical-claim audit (`numerical_audit.json`) and the citation-graph audit (`citation_graph.json`).
 
+## Corpus acquisition
+
+Full-text acquisition is a first-class pipeline phase. The literature-searcher returns metadata; the orchestrator then runs [`corpus_acquisition.CorpusAcquisitionPipeline`](plugins/vedix/mcp/lib/orchestrator/corpus_acquisition.py) on each merged paper, a three-stage cascade with provenance recording at every step:
+
+1. **DOI gate** — every candidate goes through [`cross_validator.stage1_doi_gate`](plugins/vedix/mcp/lib/orchestrator/cross_validator.py): Crossref / DataCite resolve plus a token-sort title-fuzzy threshold of 0.85. Failures short-circuit; the rejected DOI never reaches the network beyond the registry probe and the failure is recorded on the `crossref_gate` source channel.
+
+2. **OA-direct** — the pipeline queries OpenAlex's single-work record and walks `best_oa_location.pdf_url` then `oa_locations[]` then `locations[]` (filtered to known legitimate-OA hosts: arxiv, biorxiv, medrxiv, chemrxiv, osti.gov, pmc.ncbi.nlm.nih.gov, hal.science, escholarship.org, eprints.*, tspace, and `nature.com/articles/*_reference.pdf` for hybrid-OA Nature). Browser-headers download with `%PDF-` magic-byte validation. Hosts that 403 anonymous clients (pubs.acs.org, link.aps.org, thelancet.com) are intentionally excluded from the walk.
+
+3. **Sci-Hub MCP (gentle, opt-in)** — when `corpus.use_scihub_fallback=true` AND OA returned nothing, the pipeline calls `search_scihub_by_doi` + `download_scihub_pdf` through the patched MCP at `~/.vedix/external/Sci-Hub-MCP-Server/` with a configurable `pace_seconds` wall-clock delay between papers (default 25). The MCP wrapper itself is fixed for current sci-hub.ru HTML, browser-headers download, and stdio JSON-RPC compatibility — see [`plugins/vedix/scripts/patch_scihub_mirrors.py`](plugins/vedix/scripts/patch_scihub_mirrors.py) for what got patched in the upstream package.
+
+Every successful acquisition emits three artifacts:
+
+- A `SourceLedger.record_call(source=..., success=True, records_added=1)` entry in `<output_dir>/source_usage.json` — per-source attempted / successful / failed / rate_limit_hits counts.
+- A paper-skeleton [`KGFragment`](plugins/vedix/mcp/lib/orchestrator/sgca/schema.py) in the job's SGCA knowledge-graph store at `<output_dir>/.palace/vedix_kg__job__<job_id>/` — paper metadata + license + `raw_pointer` to the on-disk PDF/text. Downstream paper-extractor and claim-verifier agents populate claims/methods/results.
+- A line in `<output_dir>/downloaded.jsonl` with the resolving URL, the OA host that served the PDF, and the license tag.
+
+The reviewer and citator agents read `source_usage.json` plus the KG store as part of their checklist. Citations whose DOI never made it through the pipeline (no ledger entry or `success: false` without the `vedix-metadata-only` bib flag) are listed as "uncorroborated" in the review output.
+
+Standalone scrape scripts are also provided for batch corpus building outside of a manuscript job:
+
+| Script | Channel | Pacing |
+|---|---|---|
+| [`scripts/scrape_oa.py`](scripts/scrape_oa.py) | OpenAlex `is_oa:true` + relaxed `locations[]` walk | publisher rate-limit only |
+| [`scripts/scrape_scihub.py`](scripts/scrape_scihub.py) | Sci-Hub MCP (via patched mirror+parser) | `--pace-seconds N`, default 1 for batch, 25-60 for gentle |
+| [`scripts/scrape_journals.py`](scripts/scrape_journals.py) | Anna's Archive | 30/60/120/240 s backoff on 429 |
+| [`scripts/backfill_text_extracts.py`](scripts/backfill_text_extracts.py) | pdfminer recovery for missing text files | n/a |
+
 ## Bundled MCP servers
 
 The install registers nine MCP servers in your host config. Eight are external; one is bundled with Vedix.
@@ -127,6 +154,7 @@ The install registers nine MCP servers in your host config. Eight are external; 
 | `biorxiv` | [JackKuo666/bioRxiv-MCP-Server](https://github.com/JackKuo666/bioRxiv-MCP-Server) | Life-sciences preprints |
 | `pubmed` | `pubmed-mcp` | Biomedical literature |
 | `annas-mcp` | `annas-mcp` | Anna's Archive full-text |
+| `scihub` | [JackKuo666/Sci-Hub-MCP-Server](https://github.com/JackKuo666/Sci-Hub-MCP-Server) (patched at install) | Full-text fallback for paywalled DOIs; gentle-paced |
 | `fetcher` | `fetcher-mcp` | HTTP fallback for Consensus and Crossref |
 
 ## Memory: per-project, no cross-project leakage

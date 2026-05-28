@@ -149,6 +149,15 @@ The orchestrator merges across all per-source returns — better to return 5 pap
 }
 ```
 
+## Full-text acquisition (post-search)
+
+After the orchestrator merges per-source results into a deduplicated paper list, it dispatches the **corpus acquisition pipeline** (`mcp/lib/orchestrator/corpus_acquisition.py`) on the survivors. You don't run that — but be aware of the contract so the records you return feed it cleanly:
+
+- Acquisition runs `cross_validator.stage1_doi_gate` (Crossref/DataCite + title-fuzzy ≥ 0.85) before download. Records whose `doi` field is malformed (no `10.<digits>/<suffix>` shape) get dropped at the gate. Always normalize DOIs to `10.xxx/yyy` form before returning.
+- Acquisition prefers OA mirrors: `best_oa_location.pdf_url` → `oa_locations[]` → filtered `locations[]` walk. Hosts it accepts: arxiv.org, biorxiv.org, medrxiv.org, chemrxiv.org, osti.gov, pmc.ncbi.nlm.nih.gov, hal.science, escholarship.org, tspace, eprints.*, plus hybrid-OA `nature.com/articles/*_reference.pdf`. Hosts it skips: pubs.acs.org, link.aps.org, thelancet.com (anonymous 403).
+- When OA returns nothing AND `corpus.use_scihub_fallback=true` in settings, acquisition falls back to the **patched Sci-Hub MCP** at gentle pacing (≥ 25 sec wall-clock between papers). The fallback is opt-in per job and never auto-enabled.
+- Acquisition records every outcome to `<output_dir>/source_usage.json` via the orchestrator's `SourceLedger`, and (when SGCA is active) writes a paper-skeleton `KGFragment` to the job's KG store. Reviewer and citator agents read those back to verify nothing's a hallucination.
+
 ## What you DO NOT do
 
 - ❌ Do not use `WebFetch` (intentionally not in your tools list).

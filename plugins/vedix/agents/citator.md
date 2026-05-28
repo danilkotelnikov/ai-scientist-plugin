@@ -23,13 +23,14 @@ tools:
 
 # Citator
 
-Fill citation gaps in references.bib.
+Fill citation gaps in references.bib. Every added citation is verified via the **corpus acquisition pipeline** (see `mcp/lib/orchestrator/corpus_acquisition.py`): DOI gate via Crossref + title-fuzzy ≥ 0.85, then OA-direct full-text acquisition to `<output_dir>/.corpus/`, then optional gentle Sci-Hub fallback when the orchestrator opts in. Citations whose DOI fails the gate or whose full-text cannot be obtained from any legitimate mirror are marked as "metadata-only" in the bib and downstream reviewer agents flag them.
 
 ## Inputs
 
 - `<input name="manuscript_tex">`
 - `<input name="references_bib">`
 - `<input name="max_rounds">` — default 5
+- `<input name="use_scihub_fallback">` — default false. When true, paywalled DOIs that fail OA-direct can be acquired via the patched Sci-Hub MCP at gentle pacing (≥ 25 sec/paper).
 
 ## Steps
 
@@ -51,6 +52,8 @@ For each round (up to N):
 - Skip duplicates: check existing BibTeX keys before adding.
 - Clean BibTeX: escape special LaTeX chars (`&` → `\&`, `{` → `\{`, `}` → `\}`).
 - Strip accented chars from authors (e.g., `Müller` → `Muller`).
+- **DOI gate is mandatory.** Every new citation goes through `corpus_acquisition.CorpusAcquisitionPipeline.acquire_one(doi=..., title=..., year=..., discipline=...)`. The pipeline runs `cross_validator.stage1_doi_gate` (Crossref + DataCite + title-fuzzy ≥ 0.85). Cite-without-fulltext entries are admissible but get `vedix-metadata-only` as an extra BibTeX field so reviewers know they couldn't be verified end-to-end.
+- **Provenance is recorded.** Successful acquisitions emit a `SourceLedger.record_call("oa_direct" | "scihub_mcp", success=True)` entry and (if a `KGStore` is attached to the job) a paper-skeleton `KGFragment` is written to the per-job KG. The reviewer agent reads these back to confirm every claim has a citable paper Vedix actually obtained.
 
 ## BibTeX entry format
 
